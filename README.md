@@ -2,7 +2,7 @@
 
 **Cleaning & Home Services Marketplace**
 
-Developed by **KhimTech** | Lead Developer: Brian Wanjiku | QA: Maryann Wanjiru | 2026
+Developed by **KhimTech** | Lead Developers: Brian Wanjiku & Maryann Wanjiru| QA: Maryann Wanjiru | 2026
 
 ---
 
