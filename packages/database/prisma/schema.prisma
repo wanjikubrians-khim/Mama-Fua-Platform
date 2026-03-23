@@ -1,0 +1,584 @@
+// Mama Fua Platform — Prisma Schema
+// KhimTech | Lead Dev: Brian Wanjiku | QA: Maryann Wanjiru | 2026
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── ENUMS ──────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  CLIENT
+  CLEANER
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
+  DELETED
+}
+
+enum VerificationStatus {
+  PENDING
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+}
+
+enum BookingMode {
+  AUTO_ASSIGN
+  BROWSE_PICK
+  POST_BID
+}
+
+enum BookingStatus {
+  DRAFT
+  PENDING
+  ACCEPTED
+  PAID
+  IN_PROGRESS
+  COMPLETED
+  CONFIRMED
+  DISPUTED
+  CANCELLED
+  REFUNDED
+}
+
+enum BookingType {
+  ONE_OFF
+  RECURRING
+}
+
+enum RecurringFrequency {
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+enum PaymentMethod {
+  MPESA
+  STRIPE_CARD
+  WALLET
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED_CLIENT
+  RESOLVED_CLEANER
+  ESCALATED
+}
+
+enum NotificationType {
+  BOOKING
+  PAYMENT
+  REVIEW
+  CHAT
+  SYSTEM
+  PROMOTION
+}
+
+enum WalletTxType {
+  CREDIT
+  DEBIT
+  HOLD
+  RELEASE
+}
+
+enum ServiceCategory {
+  HOME_CLEANING
+  LAUNDRY
+  OFFICE_CLEANING
+  POST_CONSTRUCTION
+  DEEP_CLEANING
+}
+
+// ─── CORE USER ───────────────────────────────────────────────────────────────
+
+model User {
+  id              String     @id @default(uuid())
+  phone           String     @unique
+  email           String?    @unique
+  passwordHash    String?
+  firstName       String
+  lastName        String
+  avatarUrl       String?
+  role            UserRole   @default(CLIENT)
+  status          UserStatus @default(ACTIVE)
+  preferredLang   String     @default("en")
+  lastLoginAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
+
+  // Relations
+  cleanerProfile    CleanerProfile?
+  clientProfile     ClientProfile?
+  addresses         Address[]
+  bookingsAsClient  Booking[]        @relation("ClientBookings")
+  bookingsAsCleaner Booking[]        @relation("CleanerBookings")
+  bids              Bid[]
+  reviewsGiven      Review[]         @relation("ReviewsGiven")
+  reviewsReceived   Review[]         @relation("ReviewsReceived")
+  notifications     Notification[]
+  chatMessages      ChatMessage[]
+  disputesRaised    Dispute[]        @relation("DisputesRaised")
+  adminActions      AdminAction[]
+  deviceTokens      DeviceToken[]
+
+  @@map("users")
+}
+
+// ─── CLEANER PROFILE ─────────────────────────────────────────────────────────
+
+model CleanerProfile {
+  id                 String             @id @default(uuid())
+  userId             String             @unique
+  user               User               @relation(fields: [userId], references: [id])
+  bio                String?
+  nationalIdNumber   String?            @unique
+  verificationStatus VerificationStatus @default(PENDING)
+  verifiedAt         DateTime?
+  verifiedById       String?
+  rating             Decimal            @default(0.00) @db.Decimal(3, 2)
+  totalReviews       Int                @default(0)
+  totalJobs          Int                @default(0)
+  serviceAreaLat     Float?
+  serviceAreaLng     Float?
+  serviceAreaRadius  Int                @default(10)
+  isAvailable        Boolean            @default(true)
+  currentLat         Float?
+  currentLng         Float?
+  lastLocationAt     DateTime?
+  walletBalance      Int                @default(0)
+  bankName           String?
+  bankAccount        String?
+  mpesaPhone         String?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  // Relations
+  services              CleanerService[]
+  availabilitySlots     AvailabilitySlot[]
+  walletTransactions    WalletTransaction[]
+  payouts               Payout[]
+  verificationDocuments VerificationDocument[]
+
+  @@map("cleaner_profiles")
+}
+
+// ─── CLIENT PROFILE ──────────────────────────────────────────────────────────
+
+model ClientProfile {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id])
+  defaultAddressId String?
+  totalBookings    Int      @default(0)
+  walletBalance    Int      @default(0)
+  stripeCustomerId String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("client_profiles")
+}
+
+// ─── ADDRESSES ───────────────────────────────────────────────────────────────
+
+model Address {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  label        String
+  addressLine1 String
+  addressLine2 String?
+  area         String
+  city         String   @default("Nairobi")
+  county       String?
+  lat          Float
+  lng          Float
+  instructions String?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  bookings Booking[]
+
+  @@map("addresses")
+}
+
+// ─── SERVICES ────────────────────────────────────────────────────────────────
+
+model Service {
+  id              String          @id @default(uuid())
+  category        ServiceCategory
+  name            String          @unique
+  nameSwahili     String?
+  description     String
+  basePrice       Int
+  maxPrice        Int
+  durationMinutes Int
+  isActive        Boolean         @default(true)
+  iconUrl         String?
+  sortOrder       Int             @default(0)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  cleanerServices CleanerService[]
+  bookings        Booking[]
+
+  @@map("services")
+}
+
+model CleanerService {
+  id          String         @id @default(uuid())
+  cleanerId   String
+  cleaner     CleanerProfile @relation(fields: [cleanerId], references: [id])
+  serviceId   String
+  service     Service        @relation(fields: [serviceId], references: [id])
+  customPrice Int
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  @@unique([cleanerId, serviceId])
+  @@map("cleaner_services")
+}
+
+// ─── AVAILABILITY ────────────────────────────────────────────────────────────
+
+model AvailabilitySlot {
+  id           String         @id @default(uuid())
+  cleanerId    String
+  cleaner      CleanerProfile @relation(fields: [cleanerId], references: [id])
+  dayOfWeek    Int // 0=Sun, 6=Sat
+  startTime    String // "08:00"
+  endTime      String // "17:00"
+  isRecurring  Boolean        @default(true)
+  specificDate DateTime?
+  isBlocked    Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  @@map("availability_slots")
+}
+
+// ─── BOOKINGS ────────────────────────────────────────────────────────────────
+
+model Booking {
+  id                  String              @id @default(uuid())
+  bookingRef          String              @unique
+  clientId            String
+  client              User                @relation("ClientBookings", fields: [clientId], references: [id])
+  cleanerId           String?
+  cleaner             User?               @relation("CleanerBookings", fields: [cleanerId], references: [id])
+  serviceId           String
+  service             Service             @relation(fields: [serviceId], references: [id])
+  mode                BookingMode
+  status              BookingStatus       @default(DRAFT)
+  bookingType         BookingType         @default(ONE_OFF)
+  scheduledAt         DateTime
+  estimatedDuration   Int
+  actualStartAt       DateTime?
+  actualEndAt         DateTime?
+  addressId           String
+  address             Address             @relation(fields: [addressId], references: [id])
+  specialInstructions String?
+  baseAmount          Int
+  platformFee         Int
+  totalAmount         Int
+  cleanerEarnings     Int
+  recurringParentId   String?
+  recurringParent     Booking?            @relation("RecurringBookings", fields: [recurringParentId], references: [id])
+  recurringChildren   Booking[]           @relation("RecurringBookings")
+  recurringFrequency  RecurringFrequency?
+  nextBookingAt       DateTime?
+  acceptedAt          DateTime?
+  cancelledAt         DateTime?
+  cancelledById       String?
+  cancelReason        String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  deletedAt           DateTime?
+
+  // Relations
+  payments    Payment[]
+  bids        Bid[]
+  review      Review?
+  dispute     Dispute?
+  messages    ChatMessage[]
+
+  @@index([clientId, status])
+  @@index([cleanerId, status])
+  @@index([scheduledAt])
+  @@index([bookingRef])
+  @@map("bookings")
+}
+
+// ─── BIDS ─────────────────────────────────────────────────────────────────────
+
+model Bid {
+  id                String   @id @default(uuid())
+  bookingId         String
+  booking           Booking  @relation(fields: [bookingId], references: [id])
+  cleanerId         String
+  cleaner           User     @relation(fields: [cleanerId], references: [id])
+  proposedAmount    Int
+  estimatedDuration Int
+  message           String?
+  isAccepted        Boolean  @default(false)
+  expiresAt         DateTime
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@map("bids")
+}
+
+// ─── PAYMENTS ────────────────────────────────────────────────────────────────
+
+model Payment {
+  id                    String        @id @default(uuid())
+  bookingId             String
+  booking               Booking       @relation(fields: [bookingId], references: [id])
+  payerId               String
+  method                PaymentMethod
+  status                PaymentStatus @default(PENDING)
+  amount                Int
+  currency              String        @default("KES")
+  mpesaPhone            String?
+  mpesaCheckoutId       String?       @unique
+  mpesaReceiptNumber    String?
+  stripePaymentIntentId String?       @unique
+  stripeChargeId        String?       @unique
+  failureReason         String?
+  refundedAt            DateTime?
+  refundAmount          Int?
+  metadata              Json?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  @@index([bookingId])
+  @@index([mpesaCheckoutId])
+  @@map("payments")
+}
+
+// ─── WALLET ──────────────────────────────────────────────────────────────────
+
+model WalletTransaction {
+  id            String         @id @default(uuid())
+  cleanerId     String
+  cleaner       CleanerProfile @relation(fields: [cleanerId], references: [id])
+  type          WalletTxType
+  amount        Int
+  balanceBefore Int
+  balanceAfter  Int
+  bookingId     String?
+  payoutId      String?
+  description   String
+  createdAt     DateTime       @default(now())
+
+  @@index([cleanerId, createdAt])
+  @@map("wallet_transactions")
+}
+
+model Payout {
+  id                 String         @id @default(uuid())
+  cleanerId          String
+  cleaner            CleanerProfile @relation(fields: [cleanerId], references: [id])
+  amount             Int
+  method             PaymentMethod
+  status             PayoutStatus   @default(PENDING)
+  mpesaPhone         String?
+  mpesaReceiptNumber String?
+  bankName           String?
+  bankAccount        String?
+  processedAt        DateTime?
+  processedById      String?
+  failureReason      String?
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+
+  @@map("payouts")
+}
+
+// ─── REVIEWS ─────────────────────────────────────────────────────────────────
+
+model Review {
+  id         String   @id @default(uuid())
+  bookingId  String   @unique
+  booking    Booking  @relation(fields: [bookingId], references: [id])
+  clientId   String
+  client     User     @relation("ReviewsGiven", fields: [clientId], references: [id])
+  cleanerId  String
+  cleaner    User     @relation("ReviewsReceived", fields: [cleanerId], references: [id])
+  rating     Int
+  title      String?
+  body       String?
+  isPublic   Boolean  @default(true)
+  isFlagged  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  response ReviewResponse?
+
+  @@map("reviews")
+}
+
+model ReviewResponse {
+  id        String   @id @default(uuid())
+  reviewId  String   @unique
+  review    Review   @relation(fields: [reviewId], references: [id])
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("review_responses")
+}
+
+// ─── DISPUTES ────────────────────────────────────────────────────────────────
+
+model Dispute {
+  id           String        @id @default(uuid())
+  bookingId    String        @unique
+  booking      Booking       @relation(fields: [bookingId], references: [id])
+  raisedById   String
+  raisedBy     User          @relation("DisputesRaised", fields: [raisedById], references: [id])
+  status       DisputeStatus @default(OPEN)
+  reason       String
+  description  String
+  evidenceUrls String[]
+  adminNotes   String?
+  resolvedById String?
+  resolvedAt   DateTime?
+  resolution   String?
+  refundAmount Int?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@map("disputes")
+}
+
+// ─── NOTIFICATIONS ───────────────────────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id])
+  type      NotificationType
+  title     String
+  body      String
+  data      Json?
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
+
+// ─── CHAT ────────────────────────────────────────────────────────────────────
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  bookingId String
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  senderId  String
+  sender    User     @relation(fields: [senderId], references: [id])
+  body      String?
+  mediaUrl  String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([bookingId, createdAt])
+  @@map("chat_messages")
+}
+
+// ─── VERIFICATION ────────────────────────────────────────────────────────────
+
+model VerificationDocument {
+  id              String             @id @default(uuid())
+  cleanerId       String
+  cleaner         CleanerProfile     @relation(fields: [cleanerId], references: [id])
+  idFrontUrl      String
+  idBackUrl       String
+  selfieUrl       String
+  submittedAt     DateTime           @default(now())
+  reviewedAt      DateTime?
+  reviewedById    String?
+  status          VerificationStatus @default(PENDING)
+  rejectionReason String?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@map("verification_documents")
+}
+
+// ─── ADMIN AUDIT ─────────────────────────────────────────────────────────────
+
+model AdminAction {
+  id         String   @id @default(uuid())
+  adminId    String
+  admin      User     @relation(fields: [adminId], references: [id])
+  action     String
+  targetType String
+  targetId   String
+  notes      String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@map("admin_actions")
+}
+
+// ─── DEVICE TOKENS ───────────────────────────────────────────────────────────
+
+model DeviceToken {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  platform  String // ios | android | web
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("device_tokens")
+}
+
+// ─── OTP ─────────────────────────────────────────────────────────────────────
+
+model OtpToken {
+  id        String   @id @default(uuid())
+  phone     String
+  codeHash  String
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([phone])
+  @@map("otp_tokens")
+}
