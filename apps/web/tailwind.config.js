@@ -1,62 +1,138 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ['./src/**/*.{ts,tsx}'],
+  content: [
+    './src/**/*.{ts,tsx}',
+    '../../packages/ui/src/**/*.{ts,tsx}',
+  ],
   theme: {
     extend: {
+
+      // ── Colors ─────────────────────────────────────────────────────
       colors: {
         brand: {
-          50: '#eef8ff',
-          100: '#d9efff',
-          200: '#b3ddff',
-          300: '#82cbff',
-          400: '#53b6f5',
-          500: '#2f9ae7',
-          600: '#1b86d9',
-          700: '#1669ae',
-          800: '#124c80',
-          900: '#10243a',
+          50:  '#e6f1fb',
+          100: '#b5d4f4',
+          200: '#85b7eb',
+          300: '#5b9fe2',
+          400: '#378add',
+          500: '#2574c4',
+          600: '#185fa5',
+          700: '#124d87',
+          800: '#0c447c',
+          900: '#042c53',
         },
-        mint: {
-          50: '#eefdf7',
-          100: '#d1f9e7',
-          200: '#a9f1d3',
-          300: '#77e3bb',
-          400: '#35cba0',
-          500: '#22b38a',
-          600: '#14926f',
-          700: '#0f6e55',
-          800: '#0d5241',
-          900: '#09261f',
+        teal: {
+          50:  '#e1f5ee',
+          100: '#9fe1cb',
+          200: '#5dcaa5',
+          400: '#1d9e75',
+          600: '#0f6e56',
+          800: '#085041',
+          900: '#04342c',
         },
-        ink: {
-          50: '#eef3f8',
-          100: '#d9e4ee',
-          200: '#bccbda',
-          300: '#94a8bc',
-          400: '#60778f',
-          500: '#43586f',
-          600: '#324559',
-          700: '#24364c',
-          800: '#162638',
-          900: '#0c1726',
-        },
+        // Keep Tailwind defaults for amber, red, green, purple, blue, gray
       },
+
+      // ── Typography ──────────────────────────────────────────────────
       fontFamily: {
-        sans: ['"Avenir Next"', '"Segoe UI"', 'system-ui', 'sans-serif'],
-        display: ['"Iowan Old Style"', '"Palatino Linotype"', 'Georgia', 'serif'],
+        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
       },
+
+      fontSize: {
+        '2xs': ['0.625rem', { lineHeight: '1rem' }],
+      },
+
+      // ── Border radius ───────────────────────────────────────────────
       borderRadius: {
-        xl: '1rem',
+        'xl':  '1rem',
         '2xl': '1.25rem',
+        '3xl': '1.5rem',
       },
+
+      // ── Box shadows ─────────────────────────────────────────────────
       boxShadow: {
-        card: '0 18px 45px -30px rgba(16, 49, 82, 0.45), 0 12px 28px -24px rgba(27, 134, 217, 0.35)',
-        'card-hover': '0 26px 52px -24px rgba(12, 23, 38, 0.28)',
-        soft: '0 16px 34px -24px rgba(36, 54, 76, 0.35)',
-        glow: '0 22px 40px -24px rgba(27, 134, 217, 0.5)',
-        deep: '0 28px 64px -30px rgba(9, 17, 28, 0.82)',
+        'card':       '0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06)',
+        'card-hover': '0 4px 16px 0 rgb(0 0 0 / 0.10)',
+        'modal':      '0 20px 60px -10px rgb(0 0 0 / 0.25)',
+        'brand':      '0 4px 14px 0 rgb(24 95 165 / 0.35)',
+        'teal':       '0 4px 14px 0 rgb(15 110 86 / 0.35)',
+        'inner-brand':'inset 0 2px 4px 0 rgb(24 95 165 / 0.1)',
+      },
+
+      // ── Spacing ─────────────────────────────────────────────────────
+      spacing: {
+        '18': '4.5rem',
+        '22': '5.5rem',
+        '88': '22rem',
+        '92': '23rem',
+        '100': '25rem',
+        '112': '28rem',
+        '128': '32rem',
+      },
+
+      // ── Max width ───────────────────────────────────────────────────
+      maxWidth: {
+        '8xl': '88rem',
+        '9xl': '96rem',
+      },
+
+      // ── Animations ──────────────────────────────────────────────────
+      animation: {
+        'fade-in':   'fadeIn 0.2s ease-out',
+        'slide-up':  'slideUp 0.25s ease-out',
+        'scale-in':  'scaleIn 0.15s ease-out',
+        'ping-slow': 'ping 2s cubic-bezier(0, 0, 0.2, 1) infinite',
+        'bounce-sm': 'bounceSm 0.6s ease-in-out',
+      },
+
+      keyframes: {
+        fadeIn: {
+          from: { opacity: '0' },
+          to:   { opacity: '1' },
+        },
+        slideUp: {
+          from: { opacity: '0', transform: 'translateY(12px)' },
+          to:   { opacity: '1', transform: 'translateY(0)' },
+        },
+        scaleIn: {
+          from: { opacity: '0', transform: 'scale(0.95)' },
+          to:   { opacity: '1', transform: 'scale(1)' },
+        },
+        bounceSm: {
+          '0%, 100%': { transform: 'translateY(0)' },
+          '50%':      { transform: 'translateY(-4px)' },
+        },
+      },
+
+      // ── Transitions ─────────────────────────────────────────────────
+      transitionDuration: {
+        '250': '250ms',
+        '350': '350ms',
+        '400': '400ms',
+      },
+
+      // ── Background image ────────────────────────────────────────────
+      backgroundImage: {
+        'hero-gradient': 'linear-gradient(160deg, #f0f7ff 0%, #f8fafc 60%)',
+        'brand-gradient': 'linear-gradient(135deg, #185fa5 0%, #0c447c 100%)',
+        'teal-gradient':  'linear-gradient(135deg, #0f6e56 0%, #085041 100%)',
+        'grid-pattern': `
+          linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px)
+        `,
+      },
+
+      backgroundSize: {
+        'grid': '20px 20px',
       },
     },
   },
-  plugins: [],
+
+  plugins: [
+    // Uncomment if installed:
+    // require('@tailwindcss/forms'),
+    // require('@tailwindcss/typography'),
+    // require('@tailwindcss/line-clamp'),
+  ],
 };

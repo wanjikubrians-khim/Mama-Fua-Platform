@@ -11,18 +11,7 @@ import { format } from 'date-fns';
 import { formatKES } from '@mama-fua/shared';
 import { useAuthStore } from '@/store/auth.store';
 import { bookingApi } from '@/lib/api';
-
-const BRAND = '#185fa5';
-const STATUS_COLOR: Record<string, { bg: string; text: string }> = {
-  PENDING:     { bg: '#fef3c7', text: '#92400e' },
-  ACCEPTED:    { bg: '#dbeafe', text: '#1e40af' },
-  PAID:        { bg: '#dbeafe', text: '#1e40af' },
-  IN_PROGRESS: { bg: '#d1fae5', text: '#065f46' },
-  COMPLETED:   { bg: '#ede9fe', text: '#5b21b6' },
-  CONFIRMED:   { bg: '#d1fae5', text: '#065f46' },
-  CANCELLED:   { bg: '#f1f5f9', text: '#64748b' },
-  DISPUTED:    { bg: '#fee2e2', text: '#991b1b' },
-};
+import { Colors, getStatusStyle, Typography, Spacing, CommonStyles, Radius, Shadows } from '@/theme';
 
 const SERVICES = [
   { label: 'Home cleaning', emoji: '🏠', serviceId: 'home' },
@@ -70,7 +59,7 @@ export default function ClientDashboard() {
       style={styles.screen}
       contentContainerStyle={styles.content}
       showsVerticalScrollIndicator={false}
-      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={BRAND} />}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={Colors.brand[600]} />}
     >
       {/* Header */}
       <View style={styles.header}>
@@ -127,7 +116,7 @@ export default function ClientDashboard() {
         </>
       )}
 
-      {isLoading && <ActivityIndicator color={BRAND} style={{ marginTop: 32 }} />}
+      {isLoading && <ActivityIndicator color={Colors.brand[600]} style={{ marginTop: 32 }} />}
 
       {!isLoading && bookings.length === 0 && (
         <View style={styles.emptyState}>
@@ -144,7 +133,7 @@ export default function ClientDashboard() {
 }
 
 function BookingCard({ booking, onPress }: { booking: Booking; onPress: () => void }) {
-  const statusStyle = STATUS_COLOR[booking.status] ?? { bg: '#f1f5f9', text: '#64748b' };
+  const statusStyle = getStatusStyle(booking.status);
   return (
     <TouchableOpacity style={styles.bookingCard} onPress={onPress} activeOpacity={0.75}>
       <View style={styles.bookingLeft}>
@@ -176,62 +165,60 @@ function BookingCard({ booking, onPress }: { booking: Booking; onPress: () => vo
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#f8fafc' },
-  content: { paddingBottom: 40 },
+  screen: { flex: 1, backgroundColor: Colors.background },
+  content: { paddingBottom: Spacing[10] },
   header: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start',
-    paddingHorizontal: 20, paddingTop: 60, paddingBottom: 20, backgroundColor: '#fff',
-    borderBottomWidth: 1, borderBottomColor: '#f1f5f9',
+    paddingHorizontal: Spacing[5], paddingTop: 60, paddingBottom: Spacing[5], backgroundColor: Colors.backgroundCard,
+    borderBottomWidth: 1, borderBottomColor: Colors.gray[100],
   },
-  greeting: { fontSize: 22, fontWeight: '700', color: '#0f172a' },
-  subGreeting: { fontSize: 14, color: '#64748b', marginTop: 2 },
+  greeting: { fontSize: Typography.size.xl, fontWeight: Typography.weight.bold, color: Colors.textPrimary },
+  subGreeting: { fontSize: Typography.size.base, color: Colors.textSecondary, marginTop: Spacing[1] },
   notifBtn: {
     width: 42, height: 42, borderRadius: 21,
-    backgroundColor: '#f1f5f9', alignItems: 'center', justifyContent: 'center',
+    backgroundColor: Colors.gray[100], alignItems: 'center', justifyContent: 'center',
   },
-  notifIcon: { fontSize: 18 },
+  notifIcon: { fontSize: Typography.size.lg },
   sectionTitle: {
-    fontSize: 16, fontWeight: '700', color: '#0f172a',
-    marginHorizontal: 20, marginTop: 24, marginBottom: 12,
+    fontSize: Typography.size.base, fontWeight: Typography.weight.bold, color: Colors.textPrimary,
+    marginHorizontal: Spacing[5], marginTop: Spacing[6], marginBottom: Spacing[3],
   },
   servicesGrid: {
     flexDirection: 'row', flexWrap: 'wrap',
-    paddingHorizontal: 12, gap: 10,
+    paddingHorizontal: Spacing[3], gap: Spacing[3],
   },
   serviceCard: {
-    width: '46%', backgroundColor: '#fff', borderRadius: 16,
-    padding: 20, alignItems: 'center',
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    width: '46%', backgroundColor: Colors.backgroundCard, borderRadius: Radius.lg,
+    padding: Spacing[5], alignItems: 'center',
+    ...Shadows.card,
     marginHorizontal: '2%',
   },
-  serviceEmoji: { fontSize: 32, marginBottom: 8 },
-  serviceLabel: { fontSize: 13, fontWeight: '600', color: '#374151', textAlign: 'center' },
+  serviceEmoji: { fontSize: Typography.size['3xl'], marginBottom: Spacing[2] },
+  serviceLabel: { fontSize: Typography.size.sm, fontWeight: Typography.weight.semibold, color: Colors.textSecondary, textAlign: 'center' },
   bookingCard: {
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: '#fff', marginHorizontal: 20, marginBottom: 10,
-    borderRadius: 16, padding: 16,
-    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05, shadowRadius: 4, elevation: 2,
+    backgroundColor: Colors.backgroundCard, marginHorizontal: Spacing[5], marginBottom: Spacing[3],
+    borderRadius: Radius.lg, padding: Spacing[4],
+    ...Shadows.card,
   },
-  bookingLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 },
+  bookingLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, gap: Spacing[3] },
   bookingIcon: {
-    width: 48, height: 48, borderRadius: 14,
-    backgroundColor: '#eff6ff', alignItems: 'center', justifyContent: 'center',
+    width: 48, height: 48, borderRadius: Radius.md,
+    backgroundColor: Colors.brand[50], alignItems: 'center', justifyContent: 'center',
   },
-  bookingService: { fontSize: 14, fontWeight: '600', color: '#0f172a' },
-  bookingMeta: { fontSize: 12, color: '#64748b', marginTop: 2 },
-  bookingCleaner: { fontSize: 11, color: '#94a3b8', marginTop: 2 },
-  bookingRight: { alignItems: 'flex-end', gap: 6 },
-  bookingAmount: { fontSize: 14, fontWeight: '700', color: '#0f172a' },
-  statusBadge: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 3 },
-  statusText: { fontSize: 11, fontWeight: '600' },
-  viewAllBtn: { alignItems: 'center', paddingVertical: 14 },
-  viewAllText: { fontSize: 14, color: BRAND, fontWeight: '600' },
-  emptyState: { alignItems: 'center', paddingVertical: 48, paddingHorizontal: 32 },
-  emptyEmoji: { fontSize: 56, marginBottom: 16 },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: '#374151', marginBottom: 8 },
-  emptyBody: { fontSize: 14, color: '#9ca3af', textAlign: 'center', marginBottom: 24 },
-  bookBtn: { backgroundColor: BRAND, borderRadius: 14, paddingHorizontal: 32, paddingVertical: 14 },
-  bookBtnText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  bookingService: { fontSize: Typography.size.base, fontWeight: Typography.weight.semibold, color: Colors.textPrimary },
+  bookingMeta: { fontSize: Typography.size.sm, color: Colors.textSecondary, marginTop: Spacing[1] },
+  bookingCleaner: { fontSize: Typography.size.xs, color: Colors.textTertiary, marginTop: Spacing[1] },
+  bookingRight: { alignItems: 'flex-end', gap: Spacing[2] },
+  bookingAmount: { fontSize: Typography.size.base, fontWeight: Typography.weight.bold, color: Colors.textPrimary },
+  statusBadge: { borderRadius: Radius.full, paddingHorizontal: Spacing[3], paddingVertical: Spacing[1] },
+  statusText: { fontSize: Typography.size.xs, fontWeight: Typography.weight.semibold },
+  viewAllBtn: { alignItems: 'center', paddingVertical: Spacing[4] },
+  viewAllText: { fontSize: Typography.size.base, color: Colors.brand[600], fontWeight: Typography.weight.semibold },
+  emptyState: { alignItems: 'center', paddingVertical: Spacing[12], paddingHorizontal: Spacing[8] },
+  emptyEmoji: { fontSize: Typography.size['4xl'], marginBottom: Spacing[4] },
+  emptyTitle: { fontSize: Typography.size.xl, fontWeight: Typography.weight.bold, color: Colors.textPrimary, marginBottom: Spacing[2] },
+  emptyBody: { fontSize: Typography.size.base, color: Colors.textTertiary, textAlign: 'center', marginBottom: Spacing[6] },
+  bookBtn: { backgroundColor: Colors.brand[600], borderRadius: Radius.md, paddingHorizontal: Spacing[8], paddingVertical: Spacing[4] },
+  bookBtnText: { color: Colors.textInverse, fontWeight: Typography.weight.semibold, fontSize: Typography.size.md },
 });
