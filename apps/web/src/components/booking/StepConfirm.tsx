@@ -3,13 +3,24 @@
 // KhimTech | 2026
 
 import { useState } from 'react';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { formatKES, normalisePhone, COMMISSION } from '@mama-fua/shared';
-import { paymentsApi, userApi } from '@/lib/api';
-import { MapPin, Calendar, Zap, Search, MessageSquare, CreditCard, Wallet, Banknote, Smartphone, CheckCircle, Loader2, AlertCircle } from 'lucide-react';
+import { formatKES, COMMISSION } from '@mama-fua/shared';
+import { userApi } from '@/lib/api';
+import {
+  MapPin,
+  Calendar,
+  Zap,
+  Search,
+  MessageSquare,
+  Wallet,
+  Banknote,
+  Smartphone,
+  CheckCircle,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react';
 import type { BookingDraft, PaymentMethod } from '@/app/book/page';
-import { useAuthStore } from '@/store/auth.store';
 
 interface Props {
   draft: BookingDraft;
@@ -19,8 +30,17 @@ interface Props {
   error: Error | null;
 }
 
-const MODE_LABELS = { AUTO_ASSIGN: 'Auto-assign', BROWSE_PICK: 'Browse & pick', POST_BID: 'Post & bid' };
-const MODE_ICONS = { AUTO_ASSIGN: <Zap className="h-4 w-4" />, BROWSE_PICK: <Search className="h-4 w-4" />, POST_BID: <MessageSquare className="h-4 w-4" /> };
+const MODE_LABELS = {
+  AUTO_ASSIGN: 'Auto-assign',
+  BROWSE_PICK: 'Browse & pick',
+  POST_BID: 'Post & bid',
+} as const;
+
+const MODE_ICONS = {
+  AUTO_ASSIGN: <Zap className="h-4 w-4" />,
+  BROWSE_PICK: <Search className="h-4 w-4" />,
+  POST_BID: <MessageSquare className="h-4 w-4" />,
+} as const;
 
 interface PaymentOption {
   value: PaymentMethod;
@@ -30,7 +50,6 @@ interface PaymentOption {
 }
 
 export default function StepConfirm({ draft, onChange, onConfirm, isLoading, error }: Props) {
-  const user = useAuthStore((s) => s.user);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const { data: profileRes } = useQuery({
@@ -39,8 +58,6 @@ export default function StepConfirm({ draft, onChange, onConfirm, isLoading, err
   });
 
   const walletBalance: number = profileRes?.data?.data?.clientProfile?.walletBalance ?? 0;
-
-  // Commission calc for display
   const platformFee = Math.round(draft.servicePrice * COMMISSION.STANDARD);
   const cleanerEarnings = draft.servicePrice - platformFee;
 
@@ -48,26 +65,25 @@ export default function StepConfirm({ draft, onChange, onConfirm, isLoading, err
     {
       value: 'MPESA',
       label: 'M-Pesa',
-      desc: `Pay via Safaricom M-Pesa STK Push`,
-      icon: <Smartphone className="h-5 w-5 text-green-600" />,
+      desc: 'Pay via Safaricom M-Pesa STK Push.',
+      icon: <Smartphone className="h-5 w-5 text-mint-700" />,
     },
     {
       value: 'WALLET',
       label: 'Wallet',
       desc: `Balance: ${formatKES(walletBalance)}${walletBalance < draft.servicePrice ? ' — insufficient' : ''}`,
-      icon: <Wallet className="h-5 w-5 text-brand-600" />,
+      icon: <Wallet className="h-5 w-5 text-brand-700" />,
     },
     {
       value: 'CASH',
       label: 'Cash on completion',
-      desc: 'Pay directly to cleaner after job is done',
+      desc: 'Pay directly to the cleaner after the job is done.',
       icon: <Banknote className="h-5 w-5 text-amber-600" />,
     },
   ];
 
-  const canPay = agreedToTerms && (
-    draft.paymentMethod !== 'WALLET' || walletBalance >= draft.servicePrice
-  );
+  const canPay =
+    agreedToTerms && (draft.paymentMethod !== 'WALLET' || walletBalance >= draft.servicePrice);
 
   const addressDisplay = draft.address
     ? `${draft.address.addressLine1}, ${draft.address.area}`
@@ -75,162 +91,191 @@ export default function StepConfirm({ draft, onChange, onConfirm, isLoading, err
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Review your booking</h1>
-        <p className="text-gray-500 mt-1">Confirm everything looks right before paying</p>
+      <div className="space-y-3">
+        <span className="pill">Step 4</span>
+        <div>
+          <h1 className="text-4xl text-ink-900">Review your booking</h1>
+          <p className="mt-2 text-sm leading-6 text-ink-500">
+            Confirm the details, choose a payment method, and finish the booking.
+          </p>
+        </div>
       </div>
 
-      {/* Booking summary card */}
-      <div className="card divide-y divide-gray-100 p-0 overflow-hidden">
-        <div className="px-5 py-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Service</p>
-          <div className="flex items-center justify-between">
+      <div className="overflow-hidden rounded-[1.8rem] border border-white/90 bg-white/84 shadow-card backdrop-blur">
+        <div className="px-5 py-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-400">Service</p>
+          <div className="mt-3 flex items-start justify-between gap-4">
             <div>
-              <p className="font-semibold text-gray-900">{draft.serviceName}</p>
-              <div className="flex items-center gap-1.5 mt-1">
-                <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-brand-50 text-brand-600`}>
+              <p className="text-2xl font-semibold text-ink-900">{draft.serviceName}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="badge bg-brand-50 text-brand-800">
                   {MODE_ICONS[draft.mode]}
                   {MODE_LABELS[draft.mode]}
                 </span>
                 {draft.bookingType === 'RECURRING' && (
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-teal-50 text-teal-700">
+                  <span className="badge bg-mint-100 text-mint-800">
                     {draft.recurringFrequency?.toLowerCase()}
                   </span>
                 )}
               </div>
             </div>
-            <p className="text-xl font-bold text-gray-900">{formatKES(draft.servicePrice)}</p>
+            <p className="text-3xl font-semibold text-ink-900">{formatKES(draft.servicePrice)}</p>
           </div>
         </div>
 
-        <div className="px-5 py-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Location</p>
-          <div className="flex items-start gap-2">
-            <MapPin className="h-4 w-4 text-brand-600 mt-0.5 flex-shrink-0" />
-            <p className="text-sm text-gray-700">{addressDisplay}</p>
+        <div className="border-t border-brand-50 px-5 py-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-400">Location</p>
+          <div className="mt-3 flex items-start gap-3">
+            <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-600" />
+            <div>
+              <p className="text-sm font-medium text-ink-800">{addressDisplay}</p>
+              {(draft.address?.instructions || draft.specialInstructions) && (
+                <p className="mt-1 text-sm text-ink-500">
+                  {draft.address?.instructions || draft.specialInstructions}
+                </p>
+              )}
+            </div>
           </div>
-          {(draft.address?.instructions || draft.specialInstructions) && (
-            <p className="text-xs text-gray-500 mt-1.5 pl-6">
-              {draft.address?.instructions || draft.specialInstructions}
-            </p>
-          )}
         </div>
 
-        <div className="px-5 py-4">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Date & time</p>
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-brand-600 flex-shrink-0" />
-            <p className="text-sm text-gray-700">
+        <div className="border-t border-brand-50 px-5 py-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-400">
+            Date & time
+          </p>
+          <div className="mt-3 flex items-center gap-3">
+            <Calendar className="h-4 w-4 flex-shrink-0 text-brand-600" />
+            <p className="text-sm font-medium text-ink-800">
               {format(new Date(draft.scheduledAt!), "EEEE, dd MMMM yyyy 'at' h:mm a")}
             </p>
           </div>
         </div>
 
-        {/* Price breakdown */}
-        <div className="px-5 py-4 bg-gray-50">
-          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Price breakdown</p>
-          <div className="space-y-2">
+        <div className="border-t border-brand-50 bg-gradient-to-br from-brand-50/80 to-mint-50/80 px-5 py-5">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-400">
+            Price breakdown
+          </p>
+          <div className="mt-3 space-y-3">
             <div className="flex justify-between text-sm">
-              <span className="text-gray-600">Service price</span>
-              <span className="text-gray-900">{formatKES(draft.servicePrice)}</span>
+              <span className="text-ink-500">Service price</span>
+              <span className="font-medium text-ink-900">{formatKES(draft.servicePrice)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Platform fee (15%)</span>
-              <span className="text-gray-400">{formatKES(platformFee)}</span>
+              <span className="text-ink-500">Platform fee (15%)</span>
+              <span className="text-ink-700">{formatKES(platformFee)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-gray-400">Cleaner earns</span>
-              <span className="text-gray-400">{formatKES(cleanerEarnings)}</span>
+              <span className="text-ink-500">Cleaner earns</span>
+              <span className="text-ink-700">{formatKES(cleanerEarnings)}</span>
             </div>
-            <div className="flex justify-between pt-2 border-t border-gray-200">
-              <span className="font-semibold text-gray-900">Total charged</span>
-              <span className="font-bold text-gray-900 text-lg">{formatKES(draft.servicePrice)}</span>
+            <div className="flex justify-between border-t border-white/80 pt-3">
+              <span className="font-semibold text-ink-900">Total charged</span>
+              <span className="text-lg font-semibold text-ink-900">
+                {formatKES(draft.servicePrice)}
+              </span>
             </div>
           </div>
-          <p className="text-xs text-gray-400 mt-2">
-            Payment held in escrow until job is complete and confirmed.
+          <p className="mt-3 text-xs text-ink-500">
+            Payment is held in escrow until the job is complete and confirmed.
           </p>
         </div>
       </div>
 
-      {/* Payment method */}
-      <div>
-        <h2 className="text-base font-semibold text-gray-900 mb-3">Payment method</h2>
-        <div className="space-y-2">
-          {paymentOptions.map((opt) => {
-            const selected = draft.paymentMethod === opt.value;
-            const isWalletInsufficient = opt.value === 'WALLET' && walletBalance < draft.servicePrice;
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-3xl text-ink-900">Payment method</h2>
+          <p className="mt-2 text-sm text-ink-500">Choose how you want to settle this booking.</p>
+        </div>
+
+        <div className="space-y-3">
+          {paymentOptions.map((option) => {
+            const selected = draft.paymentMethod === option.value;
+            const isWalletInsufficient =
+              option.value === 'WALLET' && walletBalance < draft.servicePrice;
+
             return (
               <button
-                key={opt.value}
-                onClick={() => !isWalletInsufficient && onChange({ paymentMethod: opt.value })}
+                key={option.value}
+                onClick={() => !isWalletInsufficient && onChange({ paymentMethod: option.value })}
                 disabled={isWalletInsufficient}
-                className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
-                  selected ? 'border-brand-600 bg-brand-50' : isWalletInsufficient ? 'border-gray-100 opacity-50 cursor-not-allowed bg-gray-50' : 'border-gray-200 bg-white hover:border-brand-200'
+                className={`flex w-full items-center gap-4 rounded-[1.5rem] border px-4 py-4 text-left transition-all duration-200 ${
+                  selected
+                    ? 'border-brand-200 bg-brand-50 text-ink-900 shadow-soft'
+                    : isWalletInsufficient
+                      ? 'border-transparent bg-white/50 text-ink-300'
+                      : 'border-white/90 bg-white/84 text-ink-900 shadow-soft hover:-translate-y-0.5 hover:border-brand-100'
                 }`}
               >
-                <span className="p-2 rounded-xl bg-white border border-gray-100 flex-shrink-0">
-                  {opt.icon}
+                <span
+                  className={`flex h-12 w-12 items-center justify-center rounded-2xl ${selected ? 'border border-brand-100 bg-white' : 'bg-white shadow-soft'}`}
+                >
+                  {option.icon}
                 </span>
                 <div className="flex-1">
-                  <p className={`font-medium ${selected ? 'text-brand-900' : 'text-gray-900'}`}>{opt.label}</p>
-                  <p className={`text-xs ${isWalletInsufficient ? 'text-red-400' : 'text-gray-500'}`}>{opt.desc}</p>
+                  <p className="font-semibold">{option.label}</p>
+                  <p
+                    className={`mt-1 text-sm ${isWalletInsufficient ? 'text-red-400' : 'text-ink-500'}`}
+                  >
+                    {option.desc}
+                  </p>
                 </div>
-                {selected && <CheckCircle className="h-5 w-5 text-brand-600 flex-shrink-0" />}
+                {selected && <CheckCircle className="h-5 w-5 text-brand-600" />}
               </button>
             );
           })}
         </div>
 
-        {/* M-Pesa phone input */}
         {draft.paymentMethod === 'MPESA' && (
-          <div className="mt-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">M-Pesa phone number</label>
+          <div className="card-muted shine-panel p-5">
+            <label className="mb-2 block text-sm font-medium text-ink-700">
+              M-Pesa phone number
+            </label>
             <input
               type="tel"
               value={draft.mpesaPhone ?? ''}
-              onChange={(e) => onChange({ mpesaPhone: e.target.value })}
+              onChange={(event) => onChange({ mpesaPhone: event.target.value })}
               placeholder="+254 712 345 678"
               className="input"
             />
-            <p className="text-xs text-gray-400 mt-1">
-              You will receive a payment prompt on this number.
+            <p className="mt-2 text-xs text-ink-500">
+              You&apos;ll receive a payment prompt on this number.
             </p>
           </div>
         )}
       </div>
 
-      {/* Terms */}
-      <label className="flex items-start gap-3 cursor-pointer">
+      <label className="flex items-start gap-3 rounded-[1.5rem] border border-white/90 bg-white/74 px-4 py-4 text-sm text-ink-600 shadow-soft backdrop-blur">
         <input
           type="checkbox"
           checked={agreedToTerms}
-          onChange={(e) => setAgreedToTerms(e.target.checked)}
-          className="mt-0.5 w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+          onChange={(event) => setAgreedToTerms(event.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded border-brand-200 text-brand-600 focus:ring-brand-400"
         />
-        <span className="text-sm text-gray-600">
+        <span>
           I agree to the{' '}
-          <a href="/terms" className="text-brand-600 hover:underline">Terms of Service</a>
-          {' '}and{' '}
-          <a href="/privacy" className="text-brand-600 hover:underline">Privacy Policy</a>.
-          I understand that payment will be held in escrow until I confirm the job is complete.
+          <a href="/terms" className="font-semibold text-brand-700 hover:underline">
+            Terms of Service
+          </a>{' '}
+          and{' '}
+          <a href="/privacy" className="font-semibold text-brand-700 hover:underline">
+            Privacy Policy
+          </a>
+          . I understand that payment will be held in escrow until I confirm the job is complete.
         </span>
       </label>
 
-      {/* Error */}
       {error && (
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-red-50 border border-red-200">
-          <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+        <div className="flex items-start gap-3 rounded-[1.5rem] border border-red-200 bg-red-50 px-4 py-4">
+          <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-500" />
           <div>
-            <p className="text-sm font-medium text-red-800">Booking failed</p>
-            <p className="text-sm text-red-600 mt-0.5">
-              {(error as Error & { response?: { data?: { error?: { message?: string } } } })?.response?.data?.error?.message ?? error.message}
+            <p className="text-sm font-semibold text-red-800">Booking failed</p>
+            <p className="mt-1 text-sm text-red-600">
+              {(error as Error & { response?: { data?: { error?: { message?: string } } } })
+                ?.response?.data?.error?.message ?? error.message}
             </p>
           </div>
         </div>
       )}
 
-      {/* Confirm button */}
       <button
         onClick={onConfirm}
         disabled={!canPay || isLoading}
@@ -246,9 +291,15 @@ export default function StepConfirm({ draft, onChange, onConfirm, isLoading, err
         )}
       </button>
 
-      <p className="text-center text-xs text-gray-400">
-        🔒 Your payment is secured by escrow. Funds are only released after you confirm the job is done.
-      </p>
+      <div className="dark-panel shine-panel px-5 py-5">
+        <div className="flex items-start gap-3">
+          <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-mint-300" />
+          <p className="text-sm leading-6 text-white/72">
+            Your payment stays protected by escrow. Funds are only released after you confirm the
+            job is done.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

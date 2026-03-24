@@ -27,7 +27,7 @@ interface SavedAddress {
 }
 
 export default function StepLocation({ draft, onChange, onNext }: Props) {
-  const [mode, setMode] = useState<'saved' | 'new'>(draft.addressId ? 'saved' : 'saved');
+  const [mode, setMode] = useState<'saved' | 'new'>('saved');
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<AutocompleteResult[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<PlaceDetail | null>(null);
@@ -44,24 +44,29 @@ export default function StepLocation({ draft, onChange, onNext }: Props) {
   });
   const savedAddresses: SavedAddress[] = savedRes?.data?.data?.addresses ?? [];
 
-  // Debounced autocomplete
-  const handleQueryChange = useCallback((value: string) => {
-    setQuery(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (value.length < 3) { setSuggestions([]); return; }
-
-    debounceRef.current = setTimeout(async () => {
-      setIsSearching(true);
-      try {
-        const res = await locationApi.autocomplete(value, sessionToken);
-        setSuggestions(res.data.data ?? []);
-      } catch {
+  const handleQueryChange = useCallback(
+    (value: string) => {
+      setQuery(value);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      if (value.length < 3) {
         setSuggestions([]);
-      } finally {
-        setIsSearching(false);
+        return;
       }
-    }, 300);
-  }, [sessionToken]);
+
+      debounceRef.current = setTimeout(async () => {
+        setIsSearching(true);
+        try {
+          const res = await locationApi.autocomplete(value, sessionToken);
+          setSuggestions(res.data.data ?? []);
+        } catch {
+          setSuggestions([]);
+        } finally {
+          setIsSearching(false);
+        }
+      }, 300);
+    },
+    [sessionToken]
+  );
 
   const handleSelectSuggestion = async (suggestion: AutocompleteResult) => {
     setSuggestions([]);
@@ -78,7 +83,6 @@ export default function StepLocation({ draft, onChange, onNext }: Props) {
           addressLine1: place.formattedAddress,
           area: place.area,
           city: place.city,
-          county: place.county,
           lat: place.lat,
           lng: place.lng,
           instructions,
@@ -90,16 +94,22 @@ export default function StepLocation({ draft, onChange, onNext }: Props) {
     }
   };
 
-  const handleSelectSaved = (addr: SavedAddress) => {
+  const handleSelectSaved = (address: SavedAddress) => {
     onChange({
-      addressId: addr.id,
+      addressId: address.id,
       address: undefined,
     });
   };
 
+  const resetForMode = (nextMode: 'saved' | 'new') => {
+    setMode(nextMode);
+    onChange({ addressId: undefined, address: undefined });
+    setSelectedPlace(null);
+    setQuery('');
+  };
+
   const canProceed = !!(draft.addressId || selectedPlace);
 
-  // Update address object when label/instructions/save changes
   useEffect(() => {
     if (selectedPlace) {
       onChange({
@@ -115,142 +125,168 @@ export default function StepLocation({ draft, onChange, onNext }: Props) {
         },
       });
     }
-  }, [label, instructions, saveAddress, selectedPlace]);
+  }, [instructions, label, onChange, saveAddress, selectedPlace]);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Where do you need us?</h1>
-        <p className="text-gray-500 mt-1">Enter the address for this job</p>
+      <div className="space-y-3">
+        <span className="pill">Step 2</span>
+        <div>
+          <h1 className="text-4xl text-ink-900">Where do you need us?</h1>
+          <p className="mt-2 text-sm leading-6 text-ink-500">
+            Choose a saved address or add a fresh one for this visit.
+          </p>
+        </div>
       </div>
 
-      {/* Saved / New tabs */}
       {savedAddresses.length > 0 && (
-        <div className="flex gap-2 p-1 bg-gray-100 rounded-xl">
-          {(['saved', 'new'] as const).map((m) => (
-            <button
-              key={m}
-              onClick={() => { setMode(m); onChange({ addressId: undefined, address: undefined }); setSelectedPlace(null); setQuery(''); }}
-              className={`flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-                mode === m ? 'bg-white shadow text-gray-900' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {m === 'saved' ? `Saved addresses (${savedAddresses.length})` : 'New address'}
-            </button>
-          ))}
+        <div className="rounded-[1.5rem] border border-white/90 bg-white/74 p-1 shadow-soft backdrop-blur">
+          <div className="grid gap-1 sm:grid-cols-2">
+            {(['saved', 'new'] as const).map((item) => (
+              <button
+                key={item}
+                onClick={() => resetForMode(item)}
+                className={`rounded-[1.2rem] px-4 py-3 text-sm font-semibold transition-all ${
+                  mode === item
+                    ? 'bg-gradient-to-r from-brand-50 to-mint-50 text-ink-900 shadow-soft'
+                    : 'text-ink-500 hover:text-ink-900'
+                }`}
+              >
+                {item === 'saved' ? `Saved addresses (${savedAddresses.length})` : 'New address'}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* Saved addresses list */}
       {mode === 'saved' && savedAddresses.length > 0 && (
-        <div className="space-y-2">
-          {savedAddresses.map((addr) => {
-            const selected = draft.addressId === addr.id;
+        <div className="space-y-3">
+          {savedAddresses.map((address) => {
+            const selected = draft.addressId === address.id;
+
             return (
               <button
-                key={addr.id}
-                onClick={() => handleSelectSaved(addr)}
-                className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
-                  selected ? 'border-brand-600 bg-brand-50' : 'border-gray-200 bg-white hover:border-brand-200'
+                key={address.id}
+                onClick={() => handleSelectSaved(address)}
+                className={`flex w-full items-center gap-4 rounded-[1.5rem] border px-4 py-4 text-left transition-all duration-200 ${
+                  selected
+                    ? 'border-brand-200 bg-gradient-to-br from-white via-brand-50 to-mint-50 shadow-card'
+                    : 'border-white/90 bg-white/84 shadow-soft hover:-translate-y-0.5 hover:border-brand-100'
                 }`}
               >
-                <span className={`p-2.5 rounded-xl flex-shrink-0 ${selected ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                <span
+                  className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+                    selected ? 'bg-brand-600 text-white' : 'bg-brand-50 text-brand-700'
+                  }`}
+                >
                   <Home className="h-5 w-5" />
                 </span>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-gray-900 flex items-center gap-2">
-                    {addr.label}
-                    {addr.isDefault && <span className="badge bg-brand-50 text-brand-600 text-xs">Default</span>}
+                <div className="min-w-0 flex-1">
+                  <p className="flex items-center gap-2 font-semibold text-ink-900">
+                    {address.label}
+                    {address.isDefault && (
+                      <span className="badge bg-brand-100 text-brand-800">Default</span>
+                    )}
                   </p>
-                  <p className="text-sm text-gray-500 truncate">{addr.addressLine1}, {addr.area}</p>
+                  <p className="truncate text-sm text-ink-500">
+                    {address.addressLine1}, {address.area}
+                  </p>
                 </div>
-                {selected ? <CheckCircle className="h-5 w-5 text-brand-600 flex-shrink-0" /> : <ChevronRight className="h-4 w-4 text-gray-300" />}
+                {selected ? (
+                  <CheckCircle className="h-5 w-5 text-brand-600" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-ink-300" />
+                )}
               </button>
             );
           })}
+
           <button
             onClick={() => setMode('new')}
-            className="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-gray-200 text-gray-500 hover:border-brand-300 hover:text-brand-600 transition-all"
+            className="flex w-full items-center gap-3 rounded-[1.5rem] border border-dashed border-brand-200 bg-white/70 px-4 py-4 text-sm font-semibold text-brand-700 shadow-soft transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-50"
           >
             <Plus className="h-5 w-5" />
-            <span className="text-sm font-medium">Add a new address</span>
+            Add a new address
           </button>
         </div>
       )}
 
-      {/* New address search */}
       {(mode === 'new' || savedAddresses.length === 0) && (
         <div className="space-y-4">
-          {/* Search input */}
           <div className="relative">
-            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+            <MapPin className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-400" />
             <input
               type="text"
               value={query}
-              onChange={(e) => handleQueryChange(e.target.value)}
+              onChange={(event) => handleQueryChange(event.target.value)}
               placeholder="Search for your address or estate..."
-              className="input pl-10 pr-10"
+              className="input pl-11 pr-11"
               autoComplete="off"
             />
             {isSearching && (
-              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 animate-spin" />
+              <Loader2 className="absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-ink-400" />
             )}
           </div>
 
-          {/* Autocomplete suggestions */}
           {suggestions.length > 0 && (
-            <div className="card p-0 overflow-hidden divide-y divide-gray-100">
-              {suggestions.map((s) => (
+            <div className="overflow-hidden rounded-[1.6rem] border border-white/90 bg-white/86 shadow-card backdrop-blur">
+              {suggestions.map((suggestion, index) => (
                 <button
-                  key={s.placeId}
-                  onClick={() => handleSelectSuggestion(s)}
-                  className="w-full flex items-start gap-3 px-4 py-3 hover:bg-gray-50 text-left transition-colors"
+                  key={suggestion.placeId}
+                  onClick={() => handleSelectSuggestion(suggestion)}
+                  className={`flex w-full items-start gap-3 px-4 py-4 text-left transition-colors hover:bg-brand-50 ${
+                    index !== suggestions.length - 1 ? 'border-b border-brand-50' : ''
+                  }`}
                 >
-                  <MapPin className="h-4 w-4 text-brand-600 mt-0.5 flex-shrink-0" />
+                  <MapPin className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-600" />
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{s.mainText}</p>
-                    <p className="text-xs text-gray-500">{s.secondaryText}</p>
+                    <p className="text-sm font-semibold text-ink-900">{suggestion.mainText}</p>
+                    <p className="text-xs text-ink-500">{suggestion.secondaryText}</p>
                   </div>
                 </button>
               ))}
             </div>
           )}
 
-          {/* Selected place confirmation */}
           {selectedPlace && (
-            <div className="card bg-teal-50 border border-teal-200 p-4">
+            <div className="card-muted shine-panel p-4">
               <div className="flex gap-3">
-                <CheckCircle className="h-5 w-5 text-teal-600 flex-shrink-0 mt-0.5" />
+                <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-mint-700" />
                 <div>
-                  <p className="font-medium text-teal-800">{selectedPlace.formattedAddress}</p>
-                  <p className="text-sm text-teal-600">{selectedPlace.area}, {selectedPlace.city}</p>
+                  <p className="font-semibold text-ink-900">{selectedPlace.formattedAddress}</p>
+                  <p className="text-sm text-ink-500">
+                    {selectedPlace.area}, {selectedPlace.city}
+                  </p>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Address details */}
           {selectedPlace && (
-            <div className="space-y-4">
+            <div className="space-y-4 rounded-[1.75rem] border border-white/90 bg-white/70 p-5 shadow-soft backdrop-blur">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Label this address</label>
-                <div className="flex gap-2">
-                  {['Home', 'Office', 'Other'].map((l) => (
+                <label className="mb-2 block text-sm font-medium text-ink-700">
+                  Label this address
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {['Home', 'Office', 'Other'].map((item) => (
                     <button
-                      key={l}
-                      onClick={() => setLabel(l)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
-                        label === l ? 'border-brand-600 bg-brand-50 text-brand-600' : 'border-gray-200 text-gray-600 hover:border-brand-200'
+                      key={item}
+                      onClick={() => setLabel(item)}
+                      className={`rounded-2xl border px-4 py-2 text-sm font-semibold transition-all ${
+                        label === item
+                          ? 'border-brand-200 bg-brand-50 text-brand-800 shadow-soft'
+                          : 'border-white/90 bg-white/80 text-ink-600 shadow-soft hover:border-brand-100'
                       }`}
                     >
-                      {l}
+                      {item}
                     </button>
                   ))}
                   {!['Home', 'Office', 'Other'].includes(label) && (
                     <input
                       value={label}
-                      onChange={(e) => setLabel(e.target.value)}
-                      className="input flex-1 py-2"
+                      onChange={(event) => setLabel(event.target.value)}
+                      className="input min-w-[11rem] flex-1 py-2"
                       placeholder="Custom label"
                     />
                   )}
@@ -258,26 +294,26 @@ export default function StepLocation({ draft, onChange, onNext }: Props) {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                  Access instructions <span className="text-gray-400 font-normal">(optional)</span>
+                <label className="mb-2 block text-sm font-medium text-ink-700">
+                  Access instructions <span className="font-normal text-ink-400">(optional)</span>
                 </label>
                 <input
                   type="text"
                   value={instructions}
-                  onChange={(e) => setInstructions(e.target.value)}
+                  onChange={(event) => setInstructions(event.target.value)}
                   placeholder="e.g. Gate code 1234, 3rd floor, ring bell"
                   className="input"
                 />
               </div>
 
-              <label className="flex items-center gap-3 cursor-pointer">
+              <label className="flex items-center gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 px-4 py-3 text-sm text-ink-700">
                 <input
                   type="checkbox"
                   checked={saveAddress}
-                  onChange={(e) => setSaveAddress(e.target.checked)}
-                  className="w-4 h-4 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                  onChange={(event) => setSaveAddress(event.target.checked)}
+                  className="h-4 w-4 rounded border-brand-200 text-brand-600 focus:ring-brand-400"
                 />
-                <span className="text-sm text-gray-700">Save this address for future bookings</span>
+                Save this address for future bookings
               </label>
             </div>
           )}
@@ -289,7 +325,7 @@ export default function StepLocation({ draft, onChange, onNext }: Props) {
         disabled={!canProceed}
         className="btn-primary w-full py-4 text-base disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        Continue → Pick date & time
+        Continue to date & time
       </button>
     </div>
   );

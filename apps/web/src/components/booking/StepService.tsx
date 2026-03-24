@@ -14,26 +14,27 @@ interface Props {
   onNext: () => void;
 }
 
-const BOOKING_MODES: { value: BookingMode; label: string; desc: string; icon: React.ReactNode }[] = [
-  {
-    value: 'AUTO_ASSIGN',
-    label: 'Auto-assign',
-    desc: 'We find the best cleaner nearby. Fastest option.',
-    icon: <Zap className="h-5 w-5" />,
-  },
-  {
-    value: 'BROWSE_PICK',
-    label: 'Browse & pick',
-    desc: 'See available cleaners, read reviews, choose yours.',
-    icon: <Search className="h-5 w-5" />,
-  },
-  {
-    value: 'POST_BID',
-    label: 'Post & bid',
-    desc: 'Post your job. Cleaners apply with their best price.',
-    icon: <MessageSquare className="h-5 w-5" />,
-  },
-];
+const BOOKING_MODES: { value: BookingMode; label: string; desc: string; icon: React.ReactNode }[] =
+  [
+    {
+      value: 'AUTO_ASSIGN',
+      label: 'Auto-assign',
+      desc: 'We find the best cleaner nearby. Fastest option.',
+      icon: <Zap className="h-5 w-5" />,
+    },
+    {
+      value: 'BROWSE_PICK',
+      label: 'Browse & pick',
+      desc: 'See available cleaners, read reviews, and choose yours.',
+      icon: <Search className="h-5 w-5" />,
+    },
+    {
+      value: 'POST_BID',
+      label: 'Post & bid',
+      desc: 'Post your job and let cleaners apply with their best price.',
+      icon: <MessageSquare className="h-5 w-5" />,
+    },
+  ];
 
 const RECURRING_OPTIONS: { value: BookingType; label: string; discount?: string }[] = [
   { value: 'ONE_OFF', label: 'One time only' },
@@ -78,51 +79,65 @@ export default function StepService({ draft, onChange, onNext }: Props) {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">What do you need?</h1>
-        <p className="text-gray-500 mt-1">Choose a service to get started</p>
+      <div className="space-y-3">
+        <span className="pill">Step 1</span>
+        <div>
+          <h1 className="text-4xl text-ink-900">What do you need cleaned?</h1>
+          <p className="mt-2 text-sm leading-6 text-ink-500">
+            Start with the service, then choose how you want the booking handled.
+          </p>
+        </div>
       </div>
 
-      {/* Service cards */}
       {isLoading ? (
-        <div className="grid sm:grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="card h-32 animate-pulse bg-gray-100" />
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[1, 2, 3, 4].map((item) => (
+            <div
+              key={item}
+              className="h-40 rounded-[1.6rem] border border-white/80 bg-white/70 shadow-soft animate-pulse"
+            />
           ))}
         </div>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-4">
-          {services.map((svc) => {
-            const selected = draft.serviceId === svc.id;
+        <div className="grid gap-4 sm:grid-cols-2">
+          {services.map((service) => {
+            const selected = draft.serviceId === service.id;
+
             return (
               <button
-                key={svc.id}
-                onClick={() => onChange({ serviceId: svc.id, serviceName: svc.name, servicePrice: svc.basePrice })}
-                className={`relative text-left p-5 rounded-2xl border-2 transition-all duration-150 ${
+                key={service.id}
+                onClick={() =>
+                  onChange({
+                    serviceId: service.id,
+                    serviceName: service.name,
+                    servicePrice: service.basePrice,
+                  })
+                }
+                className={`relative overflow-hidden rounded-[1.6rem] border p-5 text-left transition-all duration-200 ${
                   selected
-                    ? 'border-brand-600 bg-brand-50 shadow-md'
-                    : 'border-gray-200 bg-white hover:border-brand-200 hover:shadow-card'
+                    ? 'border-brand-200 bg-gradient-to-br from-white via-brand-50 to-mint-50 shadow-card'
+                    : 'border-white/90 bg-white/84 shadow-soft hover:-translate-y-1 hover:border-brand-100 hover:shadow-card-hover'
                 }`}
               >
                 {selected && (
-                  <span className="absolute top-3 right-3">
+                  <span className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-soft">
                     <CheckCircle className="h-5 w-5 text-brand-600" />
                   </span>
                 )}
-                <span className="text-3xl block mb-3">
-                  {SERVICE_ICONS[svc.category] ?? '🧹'}
-                </span>
-                <h3 className="font-semibold text-gray-900">{svc.name}</h3>
-                {svc.nameSwahili && (
-                  <p className="text-xs text-gray-400 mb-1">{svc.nameSwahili}</p>
+                <span className="block text-3xl">{SERVICE_ICONS[service.category] ?? '🧹'}</span>
+                <h2 className="mt-4 text-2xl text-ink-900">{service.name}</h2>
+                {service.nameSwahili && (
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.2em] text-brand-700">
+                    {service.nameSwahili}
+                  </p>
                 )}
-                <p className="text-sm text-gray-500 mb-2 line-clamp-2">{svc.description}</p>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-brand-600">
-                    From {formatKES(svc.basePrice)}
+                <p className="mt-3 text-sm leading-6 text-ink-500">{service.description}</p>
+                <div className="mt-4 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-brand-700">
+                    From {formatKES(service.basePrice)}
                   </span>
-                  <span className="text-xs text-gray-400">
-                    ~{Math.round(svc.durationMinutes / 60)}hr
+                  <span className="text-xs font-medium uppercase tracking-[0.16em] text-ink-400">
+                    ~{Math.round(service.durationMinutes / 60)}hr
                   </span>
                 </div>
               </button>
@@ -131,31 +146,41 @@ export default function StepService({ draft, onChange, onNext }: Props) {
         </div>
       )}
 
-      {/* Booking mode */}
       {canProceed && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-gray-900">How would you like to book?</h2>
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-3xl text-ink-900">How would you like to book?</h2>
+            <p className="mt-2 text-sm text-ink-500">
+              Choose the pace and level of control you want.
+            </p>
+          </div>
+
           <div className="grid gap-3">
             {BOOKING_MODES.map((mode) => {
               const selected = draft.mode === mode.value;
+
               return (
                 <button
                   key={mode.value}
                   onClick={() => onChange({ mode: mode.value })}
-                  className={`flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all ${
+                  className={`flex items-center gap-4 rounded-[1.5rem] border px-4 py-4 text-left transition-all duration-200 ${
                     selected
-                      ? 'border-brand-600 bg-brand-50'
-                      : 'border-gray-200 bg-white hover:border-brand-200'
+                      ? 'border-brand-200 bg-brand-50 text-ink-900 shadow-soft'
+                      : 'border-white/90 bg-white/84 text-ink-900 shadow-soft hover:-translate-y-0.5 hover:border-brand-100'
                   }`}
                 >
-                  <span className={`p-2.5 rounded-xl ${selected ? 'bg-brand-600 text-white' : 'bg-gray-100 text-gray-500'}`}>
+                  <span
+                    className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+                      selected ? 'bg-brand-600 text-white' : 'bg-brand-50 text-brand-700'
+                    }`}
+                  >
                     {mode.icon}
                   </span>
                   <div className="flex-1">
-                    <p className="font-medium text-gray-900">{mode.label}</p>
-                    <p className="text-sm text-gray-500">{mode.desc}</p>
+                    <p className="font-semibold">{mode.label}</p>
+                    <p className="mt-1 text-sm text-ink-500">{mode.desc}</p>
                   </div>
-                  {selected && <CheckCircle className="h-5 w-5 text-brand-600 flex-shrink-0" />}
+                  {selected && <CheckCircle className="h-5 w-5 text-brand-600" />}
                 </button>
               );
             })}
@@ -163,27 +188,37 @@ export default function StepService({ draft, onChange, onNext }: Props) {
         </div>
       )}
 
-      {/* Recurring option */}
       {canProceed && (
-        <div className="space-y-3">
-          <h2 className="text-lg font-semibold text-gray-900">How often?</h2>
-          <div className="grid grid-cols-2 gap-3">
-            {RECURRING_OPTIONS.map((opt) => {
-              const selected = draft.bookingType === opt.value;
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-3xl text-ink-900">How often?</h2>
+            <p className="mt-2 text-sm text-ink-500">
+              Pick a one-off visit or build a repeat routine.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            {RECURRING_OPTIONS.map((option) => {
+              const selected = draft.bookingType === option.value;
+
               return (
                 <button
-                  key={opt.value}
-                  onClick={() => onChange({ bookingType: opt.value })}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    selected ? 'border-brand-600 bg-brand-50' : 'border-gray-200 bg-white hover:border-brand-200'
+                  key={option.value}
+                  onClick={() => onChange({ bookingType: option.value })}
+                  className={`rounded-[1.5rem] border px-5 py-5 text-left transition-all duration-200 ${
+                    selected
+                      ? 'border-brand-200 bg-gradient-to-br from-white via-brand-50 to-mint-50 shadow-card'
+                      : 'border-white/90 bg-white/84 shadow-soft hover:-translate-y-0.5 hover:border-brand-100'
                   }`}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    {opt.value === 'RECURRING' && <RefreshCw className="h-4 w-4 text-brand-600" />}
-                    <span className="font-medium text-sm text-gray-900">{opt.label}</span>
+                  <div className="flex items-center gap-2">
+                    {option.value === 'RECURRING' && (
+                      <RefreshCw className="h-4 w-4 text-brand-600" />
+                    )}
+                    <span className="font-semibold text-ink-900">{option.label}</span>
                   </div>
-                  {opt.discount && (
-                    <span className="badge bg-teal-50 text-teal-700 text-xs">{opt.discount}</span>
+                  {option.discount && (
+                    <span className="badge mt-3 bg-mint-100 text-mint-800">{option.discount}</span>
                   )}
                 </button>
               );
@@ -191,18 +226,22 @@ export default function StepService({ draft, onChange, onNext }: Props) {
           </div>
 
           {draft.bookingType === 'RECURRING' && (
-            <div className="grid grid-cols-3 gap-2 mt-2">
-              {FREQUENCY_OPTIONS.map((freq) => (
+            <div className="grid gap-2 sm:grid-cols-3">
+              {FREQUENCY_OPTIONS.map((frequency) => (
                 <button
-                  key={freq.value}
-                  onClick={() => onChange({ recurringFrequency: freq.value as BookingDraft['recurringFrequency'] })}
-                  className={`py-2.5 px-3 rounded-xl text-sm font-medium border-2 transition-all ${
-                    draft.recurringFrequency === freq.value
-                      ? 'border-brand-600 bg-brand-50 text-brand-600'
-                      : 'border-gray-200 text-gray-600 hover:border-brand-200'
+                  key={frequency.value}
+                  onClick={() =>
+                    onChange({
+                      recurringFrequency: frequency.value as BookingDraft['recurringFrequency'],
+                    })
+                  }
+                  className={`rounded-2xl border px-4 py-3 text-sm font-semibold transition-all duration-200 ${
+                    draft.recurringFrequency === frequency.value
+                      ? 'border-brand-200 bg-brand-50 text-brand-800 shadow-soft'
+                      : 'border-white/90 bg-white/84 text-ink-600 shadow-soft hover:border-brand-100'
                   }`}
                 >
-                  {freq.label}
+                  {frequency.label}
                 </button>
               ))}
             </div>
@@ -210,21 +249,20 @@ export default function StepService({ draft, onChange, onNext }: Props) {
         </div>
       )}
 
-      {/* Special instructions */}
       {canProceed && (
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Special instructions <span className="text-gray-400 font-normal">(optional)</span>
+        <div className="card-muted shine-panel p-5">
+          <label className="mb-2 block text-sm font-medium text-ink-700">
+            Special instructions <span className="font-normal text-ink-400">(optional)</span>
           </label>
           <textarea
             value={draft.specialInstructions ?? ''}
-            onChange={(e) => onChange({ specialInstructions: e.target.value })}
+            onChange={(event) => onChange({ specialInstructions: event.target.value })}
             placeholder="e.g. Please focus on the kitchen and bathrooms. Dog is friendly."
             rows={3}
-            className="input resize-none"
+            className="input resize-none bg-white/90"
             maxLength={500}
           />
-          <p className="text-xs text-gray-400 mt-1">
+          <p className="mt-2 text-xs text-ink-400">
             {(draft.specialInstructions ?? '').length}/500
           </p>
         </div>
@@ -232,7 +270,7 @@ export default function StepService({ draft, onChange, onNext }: Props) {
 
       {canProceed && (
         <button onClick={onNext} className="btn-primary w-full py-4 text-base">
-          Continue → Choose location
+          Continue to location
         </button>
       )}
     </div>

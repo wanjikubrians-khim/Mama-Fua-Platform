@@ -18,7 +18,13 @@ interface Props {
 
 type Step = 'input' | 'pending' | 'success' | 'failed';
 
-export default function MpesaPayModal({ bookingId, amount, defaultPhone, onClose, onSuccess }: Props) {
+export default function MpesaPayModal({
+  bookingId,
+  amount,
+  defaultPhone,
+  onClose,
+  onSuccess,
+}: Props) {
   const [phone, setPhone] = useState(defaultPhone);
   const [step, setStep] = useState<Step>('input');
   const [checkoutId, setCheckoutId] = useState('');
@@ -45,14 +51,14 @@ export default function MpesaPayModal({ bookingId, amount, defaultPhone, onClose
     },
   });
 
-  const startPolling = (cid: string) => {
+  const startPolling = (requestId: string) => {
     let attempts = 0;
-    const maxAttempts = 12; // poll for 60s (every 5s)
+    const maxAttempts = 12;
 
     pollRef.current = setInterval(async () => {
-      attempts++;
+      attempts += 1;
       try {
-        const res = await api.get(`/payments/mpesa/status/${cid}`);
+        const res = await api.get(`/payments/mpesa/status/${requestId}`);
         const payment = res.data.data;
 
         if (payment.status === 'SUCCEEDED') {
@@ -82,61 +88,65 @@ export default function MpesaPayModal({ bookingId, amount, defaultPhone, onClose
 
   return (
     <div
-      style={{ background: 'rgba(0,0,0,0.5)' }}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4"
-      onClick={(e) => e.target === e.currentTarget && step !== 'pending' && onClose()}
+      className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/55 p-4 backdrop-blur-sm sm:items-center"
+      onClick={(event) => event.target === event.currentTarget && step !== 'pending' && onClose()}
     >
-      <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-xl bg-green-100 flex items-center justify-center">
-              <Smartphone className="h-5 w-5 text-green-600" />
+      <div className="section-shell shine-panel w-full max-w-md overflow-hidden">
+        <div className="dark-panel shine-panel rounded-none border-0 px-6 py-5 shadow-none">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10">
+                <Smartphone className="h-5 w-5 text-mint-300" />
+              </div>
+              <div>
+                <p className="text-lg font-semibold text-white">Pay via M-Pesa</p>
+                <p className="text-sm text-white/72">{formatKES(amount)}</p>
+              </div>
             </div>
-            <div>
-              <p className="font-semibold text-gray-900">Pay via M-Pesa</p>
-              <p className="text-xs text-gray-500">{formatKES(amount)}</p>
-            </div>
+            {step !== 'pending' && (
+              <button
+                onClick={onClose}
+                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/70 transition-colors hover:bg-white/15"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
-          {step !== 'pending' && (
-            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
-              <X className="h-4 w-4" />
-            </button>
-          )}
         </div>
 
         <div className="px-6 py-6">
-          {/* Step: Input phone */}
           {step === 'input' && (
             <div className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                <label className="mb-2 block text-sm font-medium text-ink-700">
                   M-Pesa phone number
                 </label>
                 <input
                   type="tel"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(event) => setPhone(event.target.value)}
                   placeholder="+254 712 345 678"
-                  className="input text-lg font-medium"
+                  className="input text-lg font-semibold"
                   autoFocus
                 />
                 {phone && !isValidPhone && (
-                  <p className="text-xs text-red-500 mt-1">Enter a valid Kenyan M-Pesa number</p>
+                  <p className="mt-2 text-xs text-red-500">Enter a valid Kenyan M-Pesa number</p>
                 )}
               </div>
-              <div className="bg-green-50 rounded-xl p-4 text-sm text-green-800">
-                <p className="font-semibold mb-1">How it works:</p>
-                <ol className="space-y-1 list-decimal list-inside text-green-700">
-                  <li>Tap the button below</li>
-                  <li>A prompt appears on your phone</li>
-                  <li>Enter your M-Pesa PIN to confirm</li>
+
+              <div className="card-muted shine-panel p-4">
+                <p className="text-sm font-semibold text-ink-900">How it works</p>
+                <ol className="mt-3 space-y-2 text-sm text-ink-600">
+                  <li>1. Tap the button below.</li>
+                  <li>2. Approve the prompt on your phone.</li>
+                  <li>3. Enter your M-Pesa PIN to finish payment.</li>
                 </ol>
               </div>
+
               <button
                 onClick={() => initiateMutation.mutate()}
                 disabled={!isValidPhone || initiateMutation.isPending}
-                className="btn-primary w-full py-4 text-base bg-green-600 hover:bg-green-700 focus:ring-green-400"
+                className="btn-primary w-full py-4 text-base"
               >
                 {initiateMutation.isPending ? (
                   <span className="flex items-center justify-center gap-2">
@@ -144,82 +154,88 @@ export default function MpesaPayModal({ bookingId, amount, defaultPhone, onClose
                     Sending prompt...
                   </span>
                 ) : (
-                  `Send M-Pesa prompt → ${normalised}`
+                  `Send prompt to ${normalised}`
                 )}
               </button>
             </div>
           )}
 
-          {/* Step: Pending */}
           {step === 'pending' && (
-            <div className="text-center py-4 space-y-5">
-              <div className="relative mx-auto w-20 h-20">
-                <div className="absolute inset-0 rounded-full bg-green-100 animate-ping opacity-40" />
-                <div className="relative h-20 w-20 rounded-full bg-green-100 flex items-center justify-center">
-                  <Smartphone className="h-9 w-9 text-green-600" />
+            <div className="space-y-5 py-2 text-center">
+              <div className="relative mx-auto flex h-24 w-24 items-center justify-center">
+                <div className="absolute inset-0 rounded-full bg-mint-100 animate-ping opacity-50" />
+                <div className="relative flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-brand-50 to-mint-50">
+                  <Smartphone className="h-9 w-9 text-brand-700" />
                 </div>
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Check your phone</h3>
-                <p className="text-gray-500 text-sm mt-1">
-                  An M-Pesa payment prompt has been sent to
+                <h3 className="text-3xl text-ink-900">Check your phone</h3>
+                <p className="mt-2 text-sm leading-6 text-ink-500">
+                  An M-Pesa prompt has been sent to{' '}
+                  <span className="font-semibold text-ink-800">{normalised}</span>.
                 </p>
-                <p className="font-semibold text-gray-800 mt-0.5">{normalised}</p>
               </div>
-              <p className="text-sm text-gray-400">
-                Enter your M-Pesa PIN on your phone to confirm payment of{' '}
-                <span className="font-semibold text-gray-700">{formatKES(amount)}</span>
-              </p>
-              <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
+              <div className="rounded-[1.5rem] border border-brand-100 bg-brand-50/70 px-4 py-4">
+                <p className="text-sm text-ink-600">
+                  Waiting for confirmation of{' '}
+                  <span className="font-semibold text-ink-900">{formatKES(amount)}</span>.
+                </p>
+              </div>
+              <div className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-xs font-semibold text-ink-400 shadow-soft">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Waiting for confirmation...
+                Listening for payment status...
               </div>
-              <p className="text-xs text-gray-300">This will automatically update when payment is confirmed</p>
+              <p className="text-xs text-ink-300">Request ID: {checkoutId}</p>
             </div>
           )}
 
-          {/* Step: Success */}
           {step === 'success' && (
-            <div className="text-center py-4 space-y-4">
-              <div className="mx-auto w-20 h-20 rounded-full bg-green-100 flex items-center justify-center">
-                <CheckCircle className="h-10 w-10 text-green-600" />
+            <div className="space-y-4 py-2 text-center">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-brand-50 to-mint-50">
+                <CheckCircle className="h-10 w-10 text-mint-700" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Payment confirmed!</h3>
-                <p className="text-gray-500 text-sm mt-1">
-                  {formatKES(amount)} received successfully
+                <h3 className="text-3xl text-ink-900">Payment confirmed</h3>
+                <p className="mt-2 text-sm text-ink-500">
+                  {formatKES(amount)} received successfully.
                 </p>
               </div>
               {receiptNumber && (
-                <div className="bg-green-50 rounded-xl p-3">
-                  <p className="text-xs text-green-600 font-medium">M-Pesa Receipt</p>
-                  <p className="text-lg font-bold text-green-800 font-mono">{receiptNumber}</p>
+                <div className="card-muted shine-panel p-4">
+                  <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-700">
+                    M-Pesa receipt
+                  </p>
+                  <p className="mt-2 font-mono text-xl font-semibold text-ink-900">
+                    {receiptNumber}
+                  </p>
                 </div>
               )}
-              <p className="text-sm text-gray-500">
-                Your booking is confirmed. You'll be redirected automatically.
+              <p className="text-sm text-ink-500">
+                Your booking is confirmed. Redirecting automatically.
               </p>
             </div>
           )}
 
-          {/* Step: Failed */}
           {step === 'failed' && (
-            <div className="text-center py-4 space-y-5">
-              <div className="mx-auto w-20 h-20 rounded-full bg-red-100 flex items-center justify-center">
+            <div className="space-y-5 py-2 text-center">
+              <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-red-100">
                 <AlertCircle className="h-10 w-10 text-red-500" />
               </div>
               <div>
-                <h3 className="text-xl font-bold text-gray-900">Payment failed</h3>
-                <p className="text-gray-500 text-sm mt-1">{failureReason}</p>
+                <h3 className="text-3xl text-ink-900">Payment failed</h3>
+                <p className="mt-2 text-sm text-ink-500">{failureReason}</p>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <button
-                  onClick={() => { setStep('input'); setFailureReason(''); }}
+                  onClick={() => {
+                    setStep('input');
+                    setFailureReason('');
+                  }}
                   className="btn-primary w-full"
                 >
                   <RefreshCw className="h-4 w-4" /> Try again
                 </button>
-                <button onClick={onClose} className="btn-ghost w-full">
+                <button onClick={onClose} className="btn-secondary w-full">
                   Cancel
                 </button>
               </div>

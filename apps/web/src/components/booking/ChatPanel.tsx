@@ -32,7 +32,6 @@ export default function ChatPanel({ bookingId, onClose }: Props) {
   const socketRef = useRef<Socket | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Load history
   const { isLoading } = useQuery({
     queryKey: ['chat', bookingId],
     queryFn: async () => {
@@ -43,12 +42,14 @@ export default function ChatPanel({ bookingId, onClose }: Props) {
     },
   });
 
-  // Connect socket
   useEffect(() => {
-    const socket = io(process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'http://localhost:3001', {
-      auth: { token: accessToken },
-      transports: ['websocket'],
-    });
+    const socket = io(
+      process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'http://localhost:3001',
+      {
+        auth: { token: accessToken },
+        transports: ['websocket'],
+      }
+    );
 
     socket.on('connect', () => {
       setConnected(true);
@@ -57,15 +58,16 @@ export default function ChatPanel({ bookingId, onClose }: Props) {
 
     socket.on('disconnect', () => setConnected(false));
 
-    socket.on('chat:message', (msg: Message) => {
-      setMessages((prev) => [...prev, msg]);
+    socket.on('chat:message', (message: Message) => {
+      setMessages((prev) => [...prev, message]);
     });
 
     socketRef.current = socket;
-    return () => { socket.disconnect(); };
-  }, [bookingId, accessToken]);
+    return () => {
+      socket.disconnect();
+    };
+  }, [accessToken, bookingId]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -77,84 +79,102 @@ export default function ChatPanel({ bookingId, onClose }: Props) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div
-        className="absolute inset-0 bg-black/50"
-        onClick={onClose}
-      />
-      <div className="relative bg-white w-full sm:max-w-md h-[80vh] sm:h-[600px] rounded-t-2xl sm:rounded-2xl flex flex-col overflow-hidden shadow-2xl">
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <div>
-            <p className="font-semibold text-gray-900">Job chat</p>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className={`h-2 w-2 rounded-full ${connected ? 'bg-green-400' : 'bg-gray-300'}`} />
-              <span className="text-xs text-gray-400">{connected ? 'Connected' : 'Connecting...'}</span>
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-ink-900/55 p-0 backdrop-blur-sm sm:items-center sm:p-4">
+      <div className="absolute inset-0" onClick={onClose} />
+      <div className="section-shell shine-panel relative flex h-[82vh] w-full flex-col overflow-hidden sm:h-[620px] sm:max-w-md">
+        <div className="dark-panel shine-panel rounded-none border-0 px-5 py-4 shadow-none">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-lg font-semibold text-white">Job chat</p>
+              <div className="mt-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.16em] text-white/55">
+                <span
+                  className={`h-2 w-2 rounded-full ${connected ? 'bg-mint-300' : 'bg-white/30'}`}
+                />
+                {connected ? 'Connected' : 'Connecting'}
+              </div>
             </div>
+            <button
+              onClick={onClose}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-white/70 transition-colors hover:bg-white/15"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400">
-            <X className="h-5 w-5" />
-          </button>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+        <div className="flex-1 overflow-y-auto bg-gradient-to-b from-white/0 via-brand-50/30 to-white/0 px-4 py-4">
           {isLoading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-gray-300" />
+            <div className="flex justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-ink-300" />
             </div>
           ) : messages.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-4xl mb-2">💬</p>
-              <p className="text-sm text-gray-400">No messages yet. Say hello!</p>
+            <div className="py-14 text-center">
+              <p className="text-5xl">💬</p>
+              <p className="mt-3 text-sm text-ink-400">No messages yet. Start the conversation.</p>
             </div>
           ) : (
-            messages.map((msg) => {
-              const isMe = msg.senderId === user?.id;
-              return (
-                <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[75%] ${isMe ? 'items-end' : 'items-start'} flex flex-col gap-1`}>
-                    {!isMe && (
-                      <span className="text-xs text-gray-400 px-1">{msg.senderName}</span>
-                    )}
-                    <div className={`px-4 py-2.5 rounded-2xl text-sm ${
-                      isMe
-                        ? 'bg-brand-600 text-white rounded-br-sm'
-                        : 'bg-gray-100 text-gray-900 rounded-bl-sm'
-                    }`}>
-                      {msg.body}
+            <div className="space-y-4">
+              {messages.map((message) => {
+                const isMe = message.senderId === user?.id;
+
+                return (
+                  <div
+                    key={message.id}
+                    className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div
+                      className={`flex max-w-[78%] flex-col gap-1 ${isMe ? 'items-end' : 'items-start'}`}
+                    >
+                      {!isMe && (
+                        <span className="px-1 text-xs font-semibold uppercase tracking-[0.14em] text-ink-400">
+                          {message.senderName}
+                        </span>
+                      )}
+                      <div
+                        className={`rounded-[1.4rem] px-4 py-3 text-sm shadow-soft ${
+                          isMe
+                            ? 'rounded-br-sm bg-gradient-to-r from-brand-500 to-mint-400 text-white'
+                            : 'rounded-bl-sm border border-white/90 bg-white/88 text-ink-800'
+                        }`}
+                      >
+                        {message.body}
+                      </div>
+                      <span className="px-1 text-xs text-ink-300">
+                        {format(new Date(message.createdAt), 'h:mm a')}
+                      </span>
                     </div>
-                    <span className="text-xs text-gray-300 px-1">
-                      {format(new Date(msg.createdAt), 'h:mm a')}
-                    </span>
                   </div>
-                </div>
-              );
-            })
+                );
+              })}
+            </div>
           )}
           <div ref={bottomRef} />
         </div>
 
-        {/* Input */}
-        <div className="border-t border-gray-100 px-4 py-3 flex gap-3 items-end">
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
-            }}
-            placeholder="Type a message..."
-            rows={1}
-            className="flex-1 resize-none input py-2.5 text-sm"
-            maxLength={1000}
-          />
-          <button
-            onClick={sendMessage}
-            disabled={!input.trim() || !connected}
-            className="p-2.5 rounded-xl bg-brand-600 text-white disabled:opacity-40 hover:bg-brand-700 transition-colors flex-shrink-0"
-          >
-            <Send className="h-4 w-4" />
-          </button>
+        <div className="border-t border-white/80 bg-white/82 px-4 py-3 backdrop-blur">
+          <div className="flex items-end gap-3">
+            <textarea
+              value={input}
+              onChange={(event) => setInput(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault();
+                  sendMessage();
+                }
+              }}
+              placeholder="Type a message..."
+              rows={1}
+              className="input min-h-[3rem] flex-1 resize-none py-3 text-sm"
+              maxLength={1000}
+            />
+            <button
+              onClick={sendMessage}
+              disabled={!input.trim() || !connected}
+              className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink-900 text-white shadow-deep transition-colors hover:bg-ink-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              <Send className="h-4 w-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
