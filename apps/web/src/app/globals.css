@@ -288,6 +288,21 @@
            border-b border-gray-100;
   }
 
+  /* Dark panel for auth pages */
+  .dark-panel {
+    @apply bg-gradient-to-br from-brand-800 to-brand-900 rounded-2xl;
+  }
+
+  /* Section shell for auth pages */
+  .section-shell {
+    @apply bg-white;
+  }
+
+  /* Stat chip for landing page */
+  .stat-chip {
+    @apply bg-white/10 rounded-xl px-4 py-3 text-center;
+  }
+
   /* Chat bubble */
   .chat-bubble-me {
     @apply px-4 py-2.5 rounded-2xl rounded-br-sm text-sm
