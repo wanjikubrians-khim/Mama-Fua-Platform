@@ -2,7 +2,7 @@
 // Mama Fua — Register Page
 // KhimTech | 2026
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -43,6 +43,14 @@ const highlights = [
 ];
 
 export default function RegisterPage() {
+  return (
+    <Suspense fallback={<RegisterPageFallback />}>
+      <RegisterPageContent />
+    </Suspense>
+  );
+}
+
+function RegisterPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
@@ -304,9 +312,7 @@ export default function RegisterPage() {
                     disabled={form.formState.isSubmitting}
                     className="btn-primary w-full py-3.5 text-base"
                   >
-                    {form.formState.isSubmitting && (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    )}
+                    {form.formState.isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
                     Send verification code
                   </button>
 
@@ -376,6 +382,17 @@ export default function RegisterPage() {
             </div>
           </div>
         </section>
+      </div>
+    </div>
+  );
+}
+
+function RegisterPageFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center px-4 py-8">
+      <div className="rounded-2xl border border-slate-200 bg-white px-8 py-8 text-center shadow-card">
+        <Loader2 className="mx-auto h-6 w-6 animate-spin text-brand-700" />
+        <p className="mt-4 text-sm text-ink-500">Loading registration...</p>
       </div>
     </div>
   );

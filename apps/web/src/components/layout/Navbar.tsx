@@ -15,6 +15,7 @@ export default function Navbar() {
   const router = useRouter();
   const { user, isAuthenticated, logout } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
+  const homeHref = user?.role === 'CLEANER' ? '/cleaner/dashboard' : '/dashboard';
 
   const handleLogout = () => {
     logout();
@@ -28,12 +29,9 @@ export default function Navbar() {
   return (
     <header className="top-nav">
       <div className="mx-auto max-w-4xl px-6 py-3 flex items-center justify-between">
-
         {/* Logo */}
-        <Link href={isAuthenticated ? '/dashboard' : '/'} className="flex items-center gap-2">
-          <span className="text-xl font-extrabold text-brand-600 tracking-tight">
-            Mama Fua
-          </span>
+        <Link href={isAuthenticated ? homeHref : '/'} className="flex items-center gap-2">
+          <span className="text-xl font-extrabold text-brand-600 tracking-tight">Mama Fua</span>
           <span className="hidden sm:block text-xs font-medium text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">
             KhimTech
           </span>
@@ -70,16 +68,15 @@ export default function Navbar() {
                 <span className="hidden sm:block text-sm font-semibold text-gray-700">
                   {user.firstName}
                 </span>
-                <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown
+                  className={`h-4 w-4 text-gray-400 transition-transform ${menuOpen ? 'rotate-180' : ''}`}
+                />
               </button>
 
               {menuOpen && (
                 <>
                   {/* Backdrop */}
-                  <div
-                    className="fixed inset-0 z-10"
-                    onClick={() => setMenuOpen(false)}
-                  />
+                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
                   {/* Dropdown */}
                   <div className="absolute right-0 top-full mt-2 w-52 rounded-2xl bg-white shadow-modal border border-gray-100 py-2 z-20 animate-scale-in">
                     <div className="px-4 py-2 border-b border-gray-100 mb-1">
@@ -134,8 +131,12 @@ export default function Navbar() {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <Link href="/login" className="btn-ghost text-sm">Log in</Link>
-            <Link href="/register" className="btn-primary text-sm">Get started</Link>
+            <Link href="/login" className="btn-ghost text-sm">
+              Log in
+            </Link>
+            <Link href="/register" className="btn-primary text-sm">
+              Get started
+            </Link>
           </div>
         )}
       </div>

@@ -87,10 +87,12 @@ export const bookingApi = {
   chat: (id: string) => api.get(`/bookings/${id}/chat`),
   bids: (id: string) => api.get(`/bookings/${id}/bids`),
   submitBid: (id: string, data: object) => api.post(`/bookings/${id}/bids`, data),
-  acceptBid: (bookingId: string, bidId: string) => api.post(`/bookings/${bookingId}/bids/${bidId}/accept`),
+  acceptBid: (bookingId: string, bidId: string) =>
+    api.post(`/bookings/${bookingId}/bids/${bidId}/accept`),
 };
 
 export const cleanerApi = {
+  me: () => api.get('/cleaners/me'),
   get: (id: string) => api.get(`/cleaners/${id}`),
   updateMe: (data: object) => api.patch('/cleaners/me', data),
   setAvailable: (isAvailable: boolean) => api.patch('/cleaners/me/available', { isAvailable }),
@@ -101,10 +103,13 @@ export const cleanerApi = {
 };
 
 export const locationApi = {
-  autocomplete: (input: string, sessionToken: string) => api.get('/location/autocomplete', { params: { input, sessiontoken: sessionToken } }),
+  autocomplete: (input: string, sessionToken: string) =>
+    api.get('/location/autocomplete', { params: { input, sessiontoken: sessionToken } }),
   place: (placeId: string) => api.get('/location/place', { params: { place_id: placeId } }),
-  coverage: (lat: number, lng: number, serviceId: string) => api.get('/location/coverage', { params: { lat, lng, serviceId } }),
-  nearbyCleaners: (lat: number, lng: number, serviceId: string) => api.get('/location/cleaners/nearby', { params: { lat, lng, serviceId } }),
+  coverage: (lat: number, lng: number, serviceId: string) =>
+    api.get('/location/coverage', { params: { lat, lng, serviceId } }),
+  nearbyCleaners: (lat: number, lng: number, serviceId: string) =>
+    api.get('/location/cleaners/nearby', { params: { lat, lng, serviceId } }),
 };
 
 export const userApi = {
