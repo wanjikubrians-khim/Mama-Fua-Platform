@@ -10,6 +10,7 @@ import { userApi } from '@/lib/api';
 import {
   MapPin,
   Calendar,
+  UserRound,
   Zap,
   Search,
   MessageSquare,
@@ -28,6 +29,7 @@ interface Props {
   onConfirm: () => void;
   isLoading: boolean;
   error: Error | null;
+  stepNumber?: number;
 }
 
 const MODE_LABELS = {
@@ -49,7 +51,14 @@ interface PaymentOption {
   icon: React.ReactNode;
 }
 
-export default function StepConfirm({ draft, onChange, onConfirm, isLoading, error }: Props) {
+export default function StepConfirm({
+  draft,
+  onChange,
+  onConfirm,
+  isLoading,
+  error,
+  stepNumber = 4,
+}: Props) {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const { data: profileRes } = useQuery({
@@ -84,6 +93,12 @@ export default function StepConfirm({ draft, onChange, onConfirm, isLoading, err
 
   const canPay =
     agreedToTerms && (draft.paymentMethod !== 'WALLET' || walletBalance >= draft.servicePrice);
+  const isBrowsePick = draft.mode === 'BROWSE_PICK';
+  const confirmLabel = isBrowsePick
+    ? 'Send cleaner request'
+    : draft.mode === 'POST_BID'
+      ? 'Post job for bids'
+      : 'Create booking';
 
   const addressDisplay = draft.address
     ? `${draft.address.addressLine1}, ${draft.address.area}`
@@ -92,11 +107,11 @@ export default function StepConfirm({ draft, onChange, onConfirm, isLoading, err
   return (
     <div className="space-y-6">
       <div className="space-y-3">
-        <span className="pill">Step 4</span>
+        <span className="pill">Step {stepNumber}</span>
         <div>
           <h1 className="text-4xl text-ink-900">Review your booking</h1>
           <p className="mt-2 text-sm leading-6 text-ink-500">
-            Confirm the details, choose a payment method, and finish the booking.
+            Confirm the details, choose a payment method, and finish the booking request.
           </p>
         </div>
       </div>
@@ -150,7 +165,27 @@ export default function StepConfirm({ draft, onChange, onConfirm, isLoading, err
           </div>
         </div>
 
-        <div className="border-t border-brand-50 bg-gradient-to-br from-brand-50/80 to-mint-50/80 px-5 py-5">
+        {draft.cleanerProfile && (
+          <div className="border-t border-brand-50 px-5 py-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-400">
+              Cleaner
+            </p>
+            <div className="mt-3 flex items-start gap-3">
+              <UserRound className="mt-0.5 h-4 w-4 flex-shrink-0 text-brand-600" />
+              <div>
+                <p className="text-sm font-medium text-ink-800">
+                  {draft.cleanerProfile.firstName} {draft.cleanerProfile.lastName}
+                </p>
+                <p className="mt-1 text-sm text-ink-500">
+                  {draft.cleanerProfile.distanceKm.toFixed(1)} km away ·{' '}
+                  {draft.cleanerProfile.totalReviews} reviews
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="border-t border-brand-50 bg-gradient-to-br from-brand-50/80 to-teal-50/80 px-5 py-5">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ink-400">
             Price breakdown
           </p>
@@ -175,7 +210,9 @@ export default function StepConfirm({ draft, onChange, onConfirm, isLoading, err
             </div>
           </div>
           <p className="mt-3 text-xs text-ink-500">
-            Payment is held in escrow until the job is complete and confirmed.
+            {isBrowsePick
+              ? 'Your selected cleaner must accept first. Once they do, payment stays protected in escrow until the job is complete and confirmed.'
+              : 'Payment is held in escrow until the job is complete and confirmed.'}
           </p>
         </div>
       </div>
@@ -237,7 +274,9 @@ export default function StepConfirm({ draft, onChange, onConfirm, isLoading, err
               className="input"
             />
             <p className="mt-2 text-xs text-ink-500">
-              You&apos;ll receive a payment prompt on this number.
+              {isBrowsePick
+                ? 'This number will be used after the cleaner accepts your request.'
+                : "You'll receive a payment prompt on this number."}
             </p>
           </div>
         )}
@@ -287,16 +326,17 @@ export default function StepConfirm({ draft, onChange, onConfirm, isLoading, err
             Creating booking...
           </span>
         ) : (
-          `Confirm & pay ${formatKES(draft.servicePrice)}`
+          `${confirmLabel} · ${formatKES(draft.servicePrice)}`
         )}
       </button>
 
       <div className="dark-panel shine-panel px-5 py-5">
         <div className="flex items-start gap-3">
-          <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-mint-300" />
+          <CheckCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-teal-100" />
           <p className="text-sm leading-6 text-white/72">
-            Your payment stays protected by escrow. Funds are only released after you confirm the
-            job is done.
+            {isBrowsePick
+              ? 'The cleaner will have 30 minutes to accept or decline. If they accept, your selected payment method stays protected by escrow until completion.'
+              : 'Your payment stays protected by escrow. Funds are only released after you confirm the job is done.'}
           </p>
         </div>
       </div>

@@ -24,6 +24,7 @@ interface SavedAddress {
   lat: number;
   lng: number;
   isDefault: boolean;
+  instructions?: string | null;
 }
 
 export default function StepLocation({ draft, onChange, onNext }: Props) {
@@ -97,7 +98,16 @@ export default function StepLocation({ draft, onChange, onNext }: Props) {
   const handleSelectSaved = (address: SavedAddress) => {
     onChange({
       addressId: address.id,
-      address: undefined,
+      address: {
+        label: address.label,
+        addressLine1: address.addressLine1,
+        area: address.area,
+        city: address.city,
+        lat: address.lat,
+        lng: address.lng,
+        saveAddress: false,
+        ...(address.instructions ? { instructions: address.instructions } : {}),
+      },
     });
   };
 

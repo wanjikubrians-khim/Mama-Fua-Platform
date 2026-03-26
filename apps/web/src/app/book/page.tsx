@@ -5,12 +5,13 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
-import { CalendarDays, CreditCard, MapPin, Sparkles } from 'lucide-react';
+import { CalendarDays, CreditCard, MapPin, Sparkles, UserRound } from 'lucide-react';
 import { bookingApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import StepService from '@/components/booking/StepService';
 import StepLocation from '@/components/booking/StepLocation';
 import StepDateTime from '@/components/booking/StepDateTime';
+import StepCleaner from '@/components/booking/StepCleaner';
 import StepConfirm from '@/components/booking/StepConfirm';
 
 export type BookingMode = 'AUTO_ASSIGN' | 'BROWSE_PICK' | 'POST_BID';
@@ -21,6 +22,7 @@ export type PaymentMethod = 'MPESA' | 'WALLET' | 'CASH';
 export interface BookingDraft {
   serviceId: string;
   serviceName: string;
+  baseServicePrice: number;
   servicePrice: number;
   mode: BookingMode;
   bookingType: BookingType;
@@ -43,15 +45,20 @@ export interface BookingDraft {
   paymentMethod: PaymentMethod;
   mpesaPhone?: string | undefined;
   cleanerId?: string | undefined;
+  cleanerProfile?:
+    | {
+        id: string;
+        firstName: string;
+        lastName: string;
+        avatarUrl: string | null;
+        rating: number;
+        totalReviews: number;
+        servicePrice: number;
+        distanceKm: number;
+        nextAvailableLabel: string;
+      }
+    | undefined;
 }
-
-const STEPS = ['Service', 'Location', 'Date & Time', 'Confirm'] as const;
-const STEP_DESCRIPTIONS = [
-  'Pick the service you want.',
-  'Add the address for the job.',
-  'Set the preferred date and time.',
-  'Review the booking before payment.',
-] as const;
 
 export default function BookPage() {
   const router = useRouter();
@@ -72,12 +79,54 @@ export default function BookPage() {
   });
 
   const updateDraft = (updates: Partial<BookingDraft>) => {
-    setDraft((prev) => ({ ...prev, ...updates }));
+    setDraft((prev) => {
+      const nextDraft = { ...prev, ...updates };
+      const nextMode = updates.mode ?? prev.mode;
+      const shouldResetCleaner =
+        nextMode !== 'BROWSE_PICK' ||
+        'serviceId' in updates ||
+        'addressId' in updates ||
+        'address' in updates ||
+        'scheduledAt' in updates;
+
+      if (shouldResetCleaner) {
+        nextDraft.cleanerId = undefined;
+        nextDraft.cleanerProfile = undefined;
+        if (nextDraft.baseServicePrice != null) {
+          nextDraft.servicePrice = nextDraft.baseServicePrice;
+        }
+      }
+
+      return nextDraft;
+    });
   };
 
-  const next = () => setStep((s) => Math.min(s + 1, 3));
+  const steps =
+    draft.mode === 'BROWSE_PICK'
+      ? ['Service', 'Location', 'Date & Time', 'Cleaner', 'Confirm']
+      : ['Service', 'Location', 'Date & Time', 'Confirm'];
+  const stepDescriptions =
+    draft.mode === 'BROWSE_PICK'
+      ? [
+          'Pick the service you want.',
+          'Add the address for the job.',
+          'Set the preferred date and time.',
+          'Browse available cleaners in your area.',
+          'Review the booking before sending the request.',
+        ]
+      : [
+          'Pick the service you want.',
+          'Add the address for the job.',
+          'Set the preferred date and time.',
+          'Review the booking before payment.',
+        ];
+
+  const next = () => setStep((s) => Math.min(s + 1, steps.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
-  const progress = ((step + 1) / STEPS.length) * 100;
+  const progress = ((step + 1) / steps.length) * 100;
+  const currentStepLabel = steps[step] ?? steps[steps.length - 1] ?? 'Step';
+  const currentStepDescription =
+    stepDescriptions[step] ?? stepDescriptions[stepDescriptions.length - 1] ?? '';
 
   const handleConfirm = () => {
     createBooking.mutate(draft as BookingDraft);
@@ -121,6 +170,16 @@ export default function BookPage() {
     },
   ];
 
+  if (draft.mode === 'BROWSE_PICK') {
+    summary.splice(3, 0, {
+      label: 'Cleaner',
+      value: draft.cleanerProfile
+        ? `${draft.cleanerProfile.firstName} ${draft.cleanerProfile.lastName}`
+        : 'Choose a cleaner',
+      icon: UserRound,
+    });
+  }
+
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -135,10 +194,10 @@ export default function BookPage() {
 
             <div className="min-w-0 flex-1">
               <p className="text-sm font-medium text-brand-700">
-                Step {step + 1} of {STEPS.length}
+                Step {step + 1} of {steps.length}
               </p>
-              <h1 className="mt-1 text-3xl">{STEPS[step]}</h1>
-              <p className="mt-2 text-sm text-ink-500">{STEP_DESCRIPTIONS[step]}</p>
+              <h1 className="mt-1 text-3xl">{currentStepLabel}</h1>
+              <p className="mt-2 text-sm text-ink-500">{currentStepDescription}</p>
             </div>
           </div>
 
@@ -149,8 +208,12 @@ export default function BookPage() {
             />
           </div>
 
-          <div className="mt-4 grid gap-2 sm:grid-cols-4">
-            {STEPS.map((label, index) => (
+          <div
+            className={`mt-4 grid gap-2 ${
+              draft.mode === 'BROWSE_PICK' ? 'sm:grid-cols-5' : 'sm:grid-cols-4'
+            }`}
+          >
+            {steps.map((label, index) => (
               <div
                 key={label}
                 className={`rounded-xl border px-3 py-3 text-sm ${
@@ -171,14 +234,27 @@ export default function BookPage() {
           <section className="section-shell px-5 py-6 sm:px-8 sm:py-8">
             {step === 0 && <StepService draft={draft} onChange={updateDraft} onNext={next} />}
             {step === 1 && <StepLocation draft={draft} onChange={updateDraft} onNext={next} />}
-            {step === 2 && <StepDateTime draft={draft} onChange={updateDraft} onNext={next} />}
-            {step === 3 && (
+            {step === 2 && (
+              <StepDateTime
+                draft={draft}
+                onChange={updateDraft}
+                onNext={next}
+                {...(draft.mode === 'BROWSE_PICK'
+                  ? { nextLabel: 'Continue to cleaner selection' }
+                  : {})}
+              />
+            )}
+            {draft.mode === 'BROWSE_PICK' && step === 3 && (
+              <StepCleaner draft={draft} onChange={updateDraft} onNext={next} />
+            )}
+            {step === steps.length - 1 && (
               <StepConfirm
                 draft={draft as BookingDraft}
                 onChange={updateDraft}
                 onConfirm={handleConfirm}
                 isLoading={createBooking.isPending}
                 error={createBooking.error as Error | null}
+                stepNumber={steps.length}
               />
             )}
           </section>

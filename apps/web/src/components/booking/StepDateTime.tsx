@@ -11,6 +11,7 @@ interface Props {
   draft: Partial<BookingDraft>;
   onChange: (updates: Partial<BookingDraft>) => void;
   onNext: () => void;
+  nextLabel?: string;
 }
 
 const HOURS = [
@@ -32,7 +33,7 @@ function getDaysArray(startOffset = 0, count = 14): Date[] {
   return Array.from({ length: count }, (_, index) => addDays(TODAY, index + startOffset));
 }
 
-export default function StepDateTime({ draft, onChange, onNext }: Props) {
+export default function StepDateTime({ draft, onChange, onNext, nextLabel }: Props) {
   const [weekOffset, setWeekOffset] = useState(0);
   const days = getDaysArray(weekOffset * 7, 7);
 
@@ -195,7 +196,7 @@ export default function StepDateTime({ draft, onChange, onNext }: Props) {
         disabled={!canProceed}
         className="btn-primary w-full py-4 text-base disabled:opacity-40 disabled:cursor-not-allowed"
       >
-        Continue to review
+        {nextLabel ?? 'Continue to review'}
       </button>
     </div>
   );

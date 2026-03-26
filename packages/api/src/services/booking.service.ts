@@ -3,34 +3,69 @@
 
 import { prisma, BookingStatus, BookingMode } from '@mama-fua/database';
 import {
-  BOOKING, COMMISSION, generateBookingRef, calculateCommission, ERROR_CODES,
+  BOOKING,
+  COMMISSION,
+  generateBookingRef,
+  calculateCommission,
+  ERROR_CODES,
 } from '@mama-fua/shared';
 import { AppError } from '../middleware/errorHandler';
 import { dispatchMatchQueue } from './matching.service';
 import { releaseEscrow, scheduleEscrowRelease } from './payment.service';
 import { notifyUser } from './notification.service';
 import { logger } from '../lib/logger';
+import { redis, RedisKeys } from '../lib/redis';
 
 // ── Create Booking ──────────────────────────────────────────────────────
 
-export async function createBooking(clientId: string, input: {
-  serviceId: string;
-  mode: string;
-  cleanerId?: string;
-  addressId?: string;
-  address?: {
-    label: string; addressLine1: string; area: string; lat: number; lng: number;
-    addressLine2?: string; city?: string; county?: string; instructions?: string; saveAddress?: boolean;
-  };
-  scheduledAt: string;
-  bookingType: string;
-  recurringFrequency?: string;
-  specialInstructions?: string;
-  paymentMethod: string;
-  mpesaPhone?: string;
-}) {
+export async function createBooking(
+  clientId: string,
+  input: {
+    serviceId: string;
+    mode: string;
+    cleanerId?: string;
+    addressId?: string;
+    address?: {
+      label: string;
+      addressLine1: string;
+      area: string;
+      lat: number;
+      lng: number;
+      addressLine2?: string;
+      city?: string;
+      county?: string;
+      instructions?: string;
+      saveAddress?: boolean;
+    };
+    scheduledAt: string;
+    bookingType: string;
+    recurringFrequency?: string;
+    specialInstructions?: string;
+    paymentMethod: string;
+    mpesaPhone?: string;
+  }
+) {
   const service = await prisma.service.findUnique({ where: { id: input.serviceId } });
-  if (!service || !service.isActive) throw new AppError(ERROR_CODES.NOT_FOUND, 'Service not found', 404);
+  if (!service || !service.isActive)
+    throw new AppError(ERROR_CODES.NOT_FOUND, 'Service not found', 404);
+  if (input.mode === 'BROWSE_PICK' && !input.cleanerId) {
+    throw new AppError(
+      ERROR_CODES.VALIDATION_ERROR,
+      'Cleaner selection is required for Browse & Pick bookings',
+      400
+    );
+  }
+
+  const cleanerService = input.cleanerId
+    ? await prisma.cleanerService.findFirst({
+        where: {
+          serviceId: input.serviceId,
+          isActive: true,
+          cleaner: { userId: input.cleanerId },
+        },
+      })
+    : null;
+  const bookingAmount = cleanerService?.customPrice ?? service.basePrice;
 
   // Resolve address
   let addressId = input.addressId;
@@ -60,7 +95,7 @@ export async function createBooking(clientId: string, input: {
     if (cp && Number(cp.rating) >= 4.8) commissionRate = COMMISSION.PREMIUM_CLEANER;
   }
 
-  const { platformFee, cleanerEarnings } = calculateCommission(service.basePrice, commissionRate);
+  const { platformFee, cleanerEarnings } = calculateCommission(bookingAmount, commissionRate);
 
   // Generate booking ref
   const count = await prisma.booking.count();
@@ -80,18 +115,22 @@ export async function createBooking(clientId: string, input: {
       estimatedDuration: service.durationMinutes,
       addressId,
       specialInstructions: input.specialInstructions,
-      baseAmount: service.basePrice,
+      baseAmount: bookingAmount,
       platformFee,
-      totalAmount: service.basePrice,
+      totalAmount: bookingAmount,
       cleanerEarnings,
     },
-    include: { service: true, address: true, client: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } } },
+    include: {
+      service: true,
+      address: true,
+      client: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+    },
   });
 
   // Dispatch matching for AUTO_ASSIGN
   if (input.mode === 'AUTO_ASSIGN') {
-    dispatchMatchQueue(booking.id, input.serviceId, booking.addressId).catch(
-      (err) => logger.error('Match dispatch failed:', err)
+    dispatchMatchQueue(booking.id, input.serviceId, booking.addressId).catch((err) =>
+      logger.error('Match dispatch failed:', err)
     );
   }
 
@@ -109,7 +148,11 @@ export async function createBooking(clientId: string, input: {
 
 // ── List Bookings ───────────────────────────────────────────────────────
 
-export async function listBookings(userId: string, role: string, query: { status?: string; page: number; pageSize: number }) {
+export async function listBookings(
+  userId: string,
+  role: string,
+  query: { status?: string; page: number; pageSize: number }
+) {
   const where = role === 'CLIENT' ? { clientId: userId } : { cleanerId: userId };
   if (query.status) Object.assign(where, { status: query.status });
 
@@ -150,8 +193,12 @@ export async function getBooking(bookingId: string, userId: string, role: string
     include: {
       service: true,
       address: true,
-      cleaner: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, phone: true } },
-      client: { select: { id: true, firstName: true, lastName: true, avatarUrl: true, phone: true } },
+      cleaner: {
+        select: { id: true, firstName: true, lastName: true, avatarUrl: true, phone: true },
+      },
+      client: {
+        select: { id: true, firstName: true, lastName: true, avatarUrl: true, phone: true },
+      },
       payments: { orderBy: { createdAt: 'desc' }, take: 1 },
       review: true,
       dispute: true,
@@ -166,12 +213,124 @@ export async function getBooking(bookingId: string, userId: string, role: string
   return booking;
 }
 
+export async function getBookingTracking(bookingId: string, userId: string, role: string) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: {
+      address: true,
+      cleaner: {
+        select: { id: true, firstName: true, lastName: true, avatarUrl: true, phone: true },
+      },
+    },
+  });
+  if (!booking) throw new AppError(ERROR_CODES.NOT_FOUND, 'Booking not found', 404);
+
+  const isParty = booking.clientId === userId || booking.cleanerId === userId;
+  const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
+  if (!isParty && !isAdmin) throw new AppError(ERROR_CODES.FORBIDDEN, 'Access denied', 403);
+
+  if (!booking.cleanerId || !booking.cleaner) {
+    return {
+      bookingId: booking.id,
+      status: booking.status,
+      phase: booking.status === 'PENDING' ? 'MATCHING' : 'UNASSIGNED',
+      cleaner: null,
+      address: {
+        lat: booking.address.lat,
+        lng: booking.address.lng,
+        addressLine1: booking.address.addressLine1,
+        area: booking.address.area,
+      },
+      liveLocation: null,
+      distanceKm: null,
+      etaMinutes: null,
+    };
+  }
+
+  const cleanerProfile = await prisma.cleanerProfile.findUnique({
+    where: { userId: booking.cleanerId },
+    select: {
+      currentLat: true,
+      currentLng: true,
+      lastLocationAt: true,
+      isAvailable: true,
+    },
+  });
+
+  let cachedPosition: {
+    lat: number;
+    lng: number;
+    updatedAt: string;
+  } | null = null;
+
+  try {
+    const raw = await redis.get(RedisKeys.cleanerPosition(booking.cleanerId));
+    if (raw) {
+      const parsed = JSON.parse(raw) as { lat?: number; lng?: number; updatedAt?: string };
+      if (
+        typeof parsed.lat === 'number' &&
+        typeof parsed.lng === 'number' &&
+        typeof parsed.updatedAt === 'string'
+      ) {
+        cachedPosition = {
+          lat: parsed.lat,
+          lng: parsed.lng,
+          updatedAt: parsed.updatedAt,
+        };
+      }
+    }
+  } catch (err) {
+    logger.warn('Tracking cache lookup failed:', err);
+  }
+
+  const liveLat = cachedPosition?.lat ?? cleanerProfile?.currentLat ?? null;
+  const liveLng = cachedPosition?.lng ?? cleanerProfile?.currentLng ?? null;
+  const liveUpdatedAt =
+    cachedPosition?.updatedAt ?? cleanerProfile?.lastLocationAt?.toISOString() ?? null;
+
+  const distanceKm =
+    liveLat !== null && liveLng !== null
+      ? haversineDistanceKm(liveLat, liveLng, booking.address.lat, booking.address.lng)
+      : null;
+
+  const etaMinutes =
+    booking.status === 'IN_PROGRESS' ? 0 : distanceKm !== null ? getEtaMinutes(distanceKm) : null;
+
+  return {
+    bookingId: booking.id,
+    status: booking.status,
+    phase: getTrackingPhase(booking.status, liveLat !== null && liveLng !== null),
+    cleaner: {
+      ...booking.cleaner,
+      isAvailable: cleanerProfile?.isAvailable ?? false,
+    },
+    address: {
+      lat: booking.address.lat,
+      lng: booking.address.lng,
+      addressLine1: booking.address.addressLine1,
+      area: booking.address.area,
+    },
+    liveLocation:
+      liveLat !== null && liveLng !== null && liveUpdatedAt
+        ? {
+            lat: liveLat,
+            lng: liveLng,
+            updatedAt: liveUpdatedAt,
+            source: cachedPosition ? 'live' : 'profile',
+          }
+        : null,
+    distanceKm,
+    etaMinutes,
+  };
+}
+
 // ── State Transitions ───────────────────────────────────────────────────
 
 export async function acceptBooking(bookingId: string, cleanerId: string) {
   const booking = await getBookingOrThrow(bookingId);
   assertStatus(booking.status, ['PENDING']);
-  if (booking.cleanerId !== cleanerId) throw new AppError(ERROR_CODES.FORBIDDEN, 'Not assigned to this booking', 403);
+  if (booking.cleanerId !== cleanerId)
+    throw new AppError(ERROR_CODES.FORBIDDEN, 'Not assigned to this booking', 403);
 
   const updated = await prisma.booking.update({
     where: { id: bookingId },
@@ -190,20 +349,34 @@ export async function acceptBooking(bookingId: string, cleanerId: string) {
 export async function declineBooking(bookingId: string, cleanerId: string, reason?: string) {
   const booking = await getBookingOrThrow(bookingId);
   assertStatus(booking.status, ['PENDING']);
-  if (booking.cleanerId !== cleanerId) throw new AppError(ERROR_CODES.FORBIDDEN, 'Not assigned to this booking', 403);
+  if (booking.cleanerId !== cleanerId)
+    throw new AppError(ERROR_CODES.FORBIDDEN, 'Not assigned to this booking', 403);
 
-  await prisma.booking.update({ where: { id: bookingId }, data: { cleanerId: null, status: 'PENDING' } });
+  await prisma.booking.update({
+    where: { id: bookingId },
+    data: { cleanerId: null, status: 'PENDING' },
+  });
+
+  if (booking.mode === 'BROWSE_PICK') {
+    await notifyUser(booking.clientId, {
+      title: 'Cleaner unavailable',
+      body: 'Your selected cleaner declined the request. Choose another cleaner to continue.',
+      data: { screen: 'BrowseCleaners', bookingId },
+    });
+    return;
+  }
 
   // Re-dispatch matching with next candidate
-  dispatchMatchQueue(bookingId, booking.serviceId, booking.addressId, cleanerId).catch(
-    (err) => logger.error('Re-match dispatch failed:', err)
+  dispatchMatchQueue(bookingId, booking.serviceId, booking.addressId, cleanerId).catch((err) =>
+    logger.error('Re-match dispatch failed:', err)
   );
 }
 
 export async function startBooking(bookingId: string, cleanerId: string) {
   const booking = await getBookingOrThrow(bookingId);
   assertStatus(booking.status, ['PAID', 'ACCEPTED']);
-  if (booking.cleanerId !== cleanerId) throw new AppError(ERROR_CODES.FORBIDDEN, 'Not assigned to this booking', 403);
+  if (booking.cleanerId !== cleanerId)
+    throw new AppError(ERROR_CODES.FORBIDDEN, 'Not assigned to this booking', 403);
 
   const updated = await prisma.booking.update({
     where: { id: bookingId },
@@ -222,7 +395,8 @@ export async function startBooking(bookingId: string, cleanerId: string) {
 export async function completeBooking(bookingId: string, cleanerId: string) {
   const booking = await getBookingOrThrow(bookingId);
   assertStatus(booking.status, ['IN_PROGRESS']);
-  if (booking.cleanerId !== cleanerId) throw new AppError(ERROR_CODES.FORBIDDEN, 'Not assigned to this booking', 403);
+  if (booking.cleanerId !== cleanerId)
+    throw new AppError(ERROR_CODES.FORBIDDEN, 'Not assigned to this booking', 403);
 
   const updated = await prisma.booking.update({
     where: { id: bookingId },
@@ -244,39 +418,64 @@ export async function completeBooking(bookingId: string, cleanerId: string) {
 export async function confirmBooking(bookingId: string, clientId: string) {
   const booking = await getBookingOrThrow(bookingId);
   assertStatus(booking.status, ['COMPLETED']);
-  if (booking.clientId !== clientId) throw new AppError(ERROR_CODES.FORBIDDEN, 'Not your booking', 403);
+  if (booking.clientId !== clientId)
+    throw new AppError(ERROR_CODES.FORBIDDEN, 'Not your booking', 403);
 
   await releaseEscrow(bookingId);
   return prisma.booking.findUnique({ where: { id: bookingId } });
 }
 
-export async function cancelBooking(bookingId: string, userId: string, role: string, reason?: string) {
+export async function cancelBooking(
+  bookingId: string,
+  userId: string,
+  role: string,
+  reason?: string
+) {
   const booking = await getBookingOrThrow(bookingId);
   assertStatus(booking.status, ['DRAFT', 'PENDING', 'ACCEPTED', 'PAID']);
 
   const isAdmin = role === 'ADMIN' || role === 'SUPER_ADMIN';
   const isParty = booking.clientId === userId || booking.cleanerId === userId;
-  if (!isParty && !isAdmin) throw new AppError(ERROR_CODES.FORBIDDEN, 'Cannot cancel this booking', 403);
+  if (!isParty && !isAdmin)
+    throw new AppError(ERROR_CODES.FORBIDDEN, 'Cannot cancel this booking', 403);
 
   return prisma.booking.update({
     where: { id: bookingId },
-    data: { status: 'CANCELLED', cancelledAt: new Date(), cancelledById: userId, cancelReason: reason },
+    data: {
+      status: 'CANCELLED',
+      cancelledAt: new Date(),
+      cancelledById: userId,
+      cancelReason: reason,
+    },
   });
 }
 
-export async function raiseDispute(bookingId: string, clientId: string, input: {
-  reason: string; description: string; evidenceUrls?: string[];
-}) {
+export async function raiseDispute(
+  bookingId: string,
+  clientId: string,
+  input: {
+    reason: string;
+    description: string;
+    evidenceUrls?: string[];
+  }
+) {
   const booking = await getBookingOrThrow(bookingId);
   assertStatus(booking.status, ['COMPLETED']);
-  if (booking.clientId !== clientId) throw new AppError(ERROR_CODES.FORBIDDEN, 'Not your booking', 403);
+  if (booking.clientId !== clientId)
+    throw new AppError(ERROR_CODES.FORBIDDEN, 'Not your booking', 403);
 
   const existing = await prisma.dispute.findUnique({ where: { bookingId } });
   if (existing) throw new AppError(ERROR_CODES.CONFLICT, 'Dispute already raised', 409);
 
   const [dispute] = await prisma.$transaction([
     prisma.dispute.create({
-      data: { bookingId, raisedById: clientId, reason: input.reason, description: input.description, evidenceUrls: input.evidenceUrls ?? [] },
+      data: {
+        bookingId,
+        raisedById: clientId,
+        reason: input.reason,
+        description: input.description,
+        evidenceUrls: input.evidenceUrls ?? [],
+      },
     }),
     prisma.booking.update({ where: { id: bookingId }, data: { status: 'DISPUTED' } }),
   ]);
@@ -284,7 +483,11 @@ export async function raiseDispute(bookingId: string, clientId: string, input: {
   return dispute;
 }
 
-export async function getChatMessages(bookingId: string, userId: string, query: { cursor?: string; limit: number }) {
+export async function getChatMessages(
+  bookingId: string,
+  userId: string,
+  query: { cursor?: string; limit: number }
+) {
   const booking = await getBookingOrThrow(bookingId);
   const isParty = booking.clientId === userId || booking.cleanerId === userId;
   if (!isParty) throw new AppError(ERROR_CODES.FORBIDDEN, 'Access denied', 403);
@@ -297,12 +500,19 @@ export async function getChatMessages(bookingId: string, userId: string, query: 
   });
 }
 
-export async function submitBid(bookingId: string, cleanerId: string, input: {
-  proposedAmount: number; estimatedDuration: number; message?: string;
-}) {
+export async function submitBid(
+  bookingId: string,
+  cleanerId: string,
+  input: {
+    proposedAmount: number;
+    estimatedDuration: number;
+    message?: string;
+  }
+) {
   const booking = await getBookingOrThrow(bookingId);
   assertStatus(booking.status, ['PENDING']);
-  if (booking.mode !== 'POST_BID') throw new AppError(ERROR_CODES.VALIDATION_ERROR, 'Booking is not in bid mode', 400);
+  if (booking.mode !== 'POST_BID')
+    throw new AppError(ERROR_CODES.VALIDATION_ERROR, 'Booking is not in bid mode', 400);
 
   const existing = await prisma.bid.findFirst({ where: { bookingId, cleanerId } });
   if (existing) throw new AppError(ERROR_CODES.CONFLICT, 'Already submitted a bid', 409);
@@ -313,22 +523,30 @@ export async function submitBid(bookingId: string, cleanerId: string, input: {
 
 export async function listBids(bookingId: string, clientId: string) {
   const booking = await getBookingOrThrow(bookingId);
-  if (booking.clientId !== clientId) throw new AppError(ERROR_CODES.FORBIDDEN, 'Not your booking', 403);
+  if (booking.clientId !== clientId)
+    throw new AppError(ERROR_CODES.FORBIDDEN, 'Not your booking', 403);
   return prisma.bid.findMany({
     where: { bookingId, expiresAt: { gt: new Date() } },
-    include: { cleaner: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } } },
+    include: {
+      cleaner: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+    },
     orderBy: { createdAt: 'asc' },
   });
 }
 
 export async function acceptBid(bookingId: string, bidId: string, clientId: string) {
   const booking = await getBookingOrThrow(bookingId);
-  if (booking.clientId !== clientId) throw new AppError(ERROR_CODES.FORBIDDEN, 'Not your booking', 403);
+  if (booking.clientId !== clientId)
+    throw new AppError(ERROR_CODES.FORBIDDEN, 'Not your booking', 403);
 
   const bid = await prisma.bid.findUnique({ where: { id: bidId } });
-  if (!bid || bid.bookingId !== bookingId) throw new AppError(ERROR_CODES.NOT_FOUND, 'Bid not found', 404);
+  if (!bid || bid.bookingId !== bookingId)
+    throw new AppError(ERROR_CODES.NOT_FOUND, 'Bid not found', 404);
 
-  const { platformFee, cleanerEarnings } = calculateCommission(bid.proposedAmount, COMMISSION.STANDARD);
+  const { platformFee, cleanerEarnings } = calculateCommission(
+    bid.proposedAmount,
+    COMMISSION.STANDARD
+  );
 
   const [updated] = await prisma.$transaction([
     prisma.booking.update({
@@ -372,4 +590,30 @@ function assertStatus(current: string, allowed: BookingStatus[]) {
       400
     );
   }
+}
+
+function haversineDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLng = toRad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return earthRadiusKm * c;
+}
+
+function getEtaMinutes(distanceKm: number) {
+  return Math.max(4, Math.round((distanceKm / 24) * 60));
+}
+
+function getTrackingPhase(status: string, hasLiveLocation: boolean) {
+  if (status === 'IN_PROGRESS') return 'ON_SITE';
+  if (['ACCEPTED', 'PAID'].includes(status)) {
+    return hasLiveLocation ? 'EN_ROUTE' : 'ASSIGNED';
+  }
+  if (status === 'PENDING') return 'MATCHING';
+  if (['COMPLETED', 'CONFIRMED'].includes(status)) return 'COMPLETED';
+  return 'IDLE';
 }

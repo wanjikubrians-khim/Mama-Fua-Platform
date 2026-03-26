@@ -37,43 +37,70 @@ export function initSocket(server: HttpServer): SocketServer {
     socket.join(`user:${userId}`);
 
     // Cleaner updates live position
-    socket.on('cleaner:position', async (data: { bookingId: string; lat: number; lng: number; accuracy: number }) => {
-      try {
-        // Store last position in Redis (60s TTL)
-        await redis.setex(
-          RedisKeys.cleanerPosition(userId),
-          TTL.CLEANER_POSITION,
-          JSON.stringify({ lat: data.lat, lng: data.lng, updatedAt: new Date().toISOString() })
-        );
-        // Broadcast to booking room
-        io.to(`booking:${data.bookingId}`).emit('cleaner:location', {
-          bookingId: data.bookingId, lat: data.lat, lng: data.lng, accuracy: data.accuracy,
-        });
-      } catch (err) {
-        logger.error('Position update error:', err);
+    socket.on(
+      'cleaner:position',
+      async (data: { bookingId: string; lat: number; lng: number; accuracy: number }) => {
+        try {
+          // Store last position in Redis (60s TTL)
+          const updatedAt = new Date();
+          await Promise.all([
+            redis.setex(
+              RedisKeys.cleanerPosition(userId),
+              TTL.CLEANER_POSITION,
+              JSON.stringify({ lat: data.lat, lng: data.lng, updatedAt: updatedAt.toISOString() })
+            ),
+            prisma.cleanerProfile.updateMany({
+              where: { userId },
+              data: {
+                currentLat: data.lat,
+                currentLng: data.lng,
+                lastLocationAt: updatedAt,
+              },
+            }),
+          ]);
+          // Broadcast to booking room
+          io.to(`booking:${data.bookingId}`).emit('cleaner:location', {
+            bookingId: data.bookingId,
+            lat: data.lat,
+            lng: data.lng,
+            accuracy: data.accuracy,
+          });
+        } catch (err) {
+          logger.error('Position update error:', err);
+        }
       }
-    });
+    );
 
     // Chat message
-    socket.on('chat:send', async (data: { bookingId: string; body?: string; mediaUrl?: string }) => {
-      try {
-        const msg = await prisma.chatMessage.create({
-          data: { bookingId: data.bookingId, senderId: userId, body: data.body, mediaUrl: data.mediaUrl },
-          include: { sender: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } } },
-        });
-        io.to(`booking:${data.bookingId}`).emit('chat:message', {
-          id: msg.id,
-          bookingId: msg.bookingId,
-          senderId: msg.senderId,
-          senderName: `${msg.sender.firstName} ${msg.sender.lastName}`,
-          body: msg.body,
-          mediaUrl: msg.mediaUrl,
-          createdAt: msg.createdAt.toISOString(),
-        });
-      } catch (err) {
-        logger.error('Chat send error:', err);
+    socket.on(
+      'chat:send',
+      async (data: { bookingId: string; body?: string; mediaUrl?: string }) => {
+        try {
+          const msg = await prisma.chatMessage.create({
+            data: {
+              bookingId: data.bookingId,
+              senderId: userId,
+              body: data.body,
+              mediaUrl: data.mediaUrl,
+            },
+            include: {
+              sender: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
+            },
+          });
+          io.to(`booking:${data.bookingId}`).emit('chat:message', {
+            id: msg.id,
+            bookingId: msg.bookingId,
+            senderId: msg.senderId,
+            senderName: `${msg.sender.firstName} ${msg.sender.lastName}`,
+            body: msg.body,
+            mediaUrl: msg.mediaUrl,
+            createdAt: msg.createdAt.toISOString(),
+          });
+        } catch (err) {
+          logger.error('Chat send error:', err);
+        }
       }
-    });
+    );
 
     // Join booking room (called when client opens booking detail screen)
     socket.on('booking:join', (bookingId: string) => {

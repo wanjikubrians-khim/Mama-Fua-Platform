@@ -110,6 +110,7 @@ export default function StepService({ draft, onChange, onNext }: Props) {
                   onChange({
                     serviceId: service.id,
                     serviceName: service.name,
+                    baseServicePrice: service.basePrice,
                     servicePrice: service.basePrice,
                   })
                 }

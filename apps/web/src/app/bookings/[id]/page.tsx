@@ -2,8 +2,8 @@
 // Mama Fua — Booking Detail Page
 // KhimTech | 2026
 
-import { useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { formatKES } from '@mama-fua/shared';
@@ -23,6 +23,7 @@ import {
 import MpesaPayModal from '@/components/payment/MpesaPayModal';
 import ChatPanel from '@/components/booking/ChatPanel';
 import ReviewModal from '@/components/booking/ReviewModal';
+import TrackingPanel from '@/components/booking/TrackingPanel';
 
 const STATUS_CONFIG: Record<string, { label: string; tone: string; desc: string }> = {
   DRAFT: {
@@ -80,10 +81,12 @@ const STATUS_CONFIG: Record<string, { label: string; tone: string; desc: string 
 export default function BookingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const user = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
   const isClient = user?.role === 'CLIENT';
   const isCleaner = user?.role === 'CLEANER';
+  const requestedPanel = searchParams.get('panel');
 
   const [showMpesaModal, setShowMpesaModal] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -98,6 +101,15 @@ export default function BookingDetailPage() {
   });
 
   const booking = data?.data?.data;
+
+  useEffect(() => {
+    if (!booking) return;
+
+    if (requestedPanel === 'chat') setShowChat(true);
+    if (requestedPanel === 'review' && booking.status === 'CONFIRMED' && !booking.review) {
+      setShowReview(true);
+    }
+  }, [booking, requestedPanel]);
 
   const mutation = useMutation({
     mutationFn: async (action: string) => {
@@ -134,6 +146,14 @@ export default function BookingDetailPage() {
 
   const status = STATUS_CONFIG[booking.status] ?? STATUS_CONFIG.PENDING!;
   const canChat = ['ACCEPTED', 'PAID', 'IN_PROGRESS', 'COMPLETED'].includes(booking.status);
+  const showTracking = [
+    'PENDING',
+    'ACCEPTED',
+    'PAID',
+    'IN_PROGRESS',
+    'COMPLETED',
+    'CONFIRMED',
+  ].includes(booking.status);
 
   return (
     <div className="min-h-screen px-4 py-6 sm:px-6">
@@ -429,6 +449,16 @@ export default function BookingDetailPage() {
                   completion without reloading.
                 </p>
               </div>
+            )}
+
+            {showTracking && (
+              <TrackingPanel
+                bookingId={booking.id}
+                bookingStatus={booking.status}
+                role={user?.role}
+                cleaner={booking.cleaner}
+                address={booking.address}
+              />
             )}
 
             <section className="section-shell shine-panel px-6 py-6">

@@ -5,32 +5,45 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { Home, Calendar, Bell, User, Wallet } from 'lucide-react';
 import { useAuthStore } from '@/store/auth.store';
+import { userApi } from '@/lib/api';
 
 export default function BottomNav() {
   const pathname = usePathname();
   const user = useAuthStore((s) => s.user);
 
+  const { data: notifRes } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => userApi.notifications(),
+    enabled: !!user,
+    refetchInterval: 30000,
+  });
+
   // Only show on authenticated pages, not landing/auth
   const hiddenPaths = ['/', '/login', '/register'];
   if (!user || hiddenPaths.includes(pathname)) return null;
 
-  const isClient  = user.role === 'CLIENT';
+  const unreadCount = (notifRes?.data?.data ?? []).filter(
+    (notification: { isRead: boolean }) => !notification.isRead
+  ).length;
+
+  const isClient = user.role === 'CLIENT';
   const isCleaner = user.role === 'CLEANER';
 
   const clientLinks = [
-    { href: '/dashboard',      icon: Home,     label: 'Home' },
-    { href: '/bookings',       icon: Calendar, label: 'Bookings' },
-    { href: '/notifications',  icon: Bell,     label: 'Alerts' },
-    { href: '/profile',        icon: User,     label: 'Profile' },
+    { href: '/dashboard', icon: Home, label: 'Home' },
+    { href: '/bookings', icon: Calendar, label: 'Bookings' },
+    { href: '/notifications', icon: Bell, label: 'Alerts' },
+    { href: '/profile', icon: User, label: 'Profile' },
   ];
 
   const cleanerLinks = [
-    { href: '/cleaner/dashboard', icon: Home,     label: 'Home' },
-    { href: '/bookings',          icon: Calendar, label: 'Jobs' },
-    { href: '/cleaner/wallet',    icon: Wallet,   label: 'Wallet' },
-    { href: '/profile',           icon: User,     label: 'Profile' },
+    { href: '/cleaner/dashboard', icon: Home, label: 'Home' },
+    { href: '/bookings', icon: Calendar, label: 'Jobs' },
+    { href: '/cleaner/wallet', icon: Wallet, label: 'Wallet' },
+    { href: '/notifications', icon: Bell, label: 'Alerts' },
   ];
 
   const links = isCleaner ? cleanerLinks : clientLinks;
@@ -45,13 +58,18 @@ export default function BottomNav() {
               key={href}
               href={href}
               className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors min-w-0 ${
-                active
-                  ? 'text-brand-600'
-                  : 'text-gray-400 hover:text-gray-600'
+                active ? 'text-brand-600' : 'text-gray-400 hover:text-gray-600'
               }`}
             >
-              <Icon className={`h-5 w-5 flex-shrink-0 ${active ? 'stroke-[2.5px]' : ''}`} />
-              <span className={`text-[10px] font-semibold tracking-wide truncate ${active ? 'text-brand-600' : ''}`}>
+              <span className="relative">
+                <Icon className={`h-5 w-5 flex-shrink-0 ${active ? 'stroke-[2.5px]' : ''}`} />
+                {href === '/notifications' && unreadCount > 0 && (
+                  <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+                )}
+              </span>
+              <span
+                className={`text-[10px] font-semibold tracking-wide truncate ${active ? 'text-brand-600' : ''}`}
+              >
                 {label}
               </span>
               {active && (

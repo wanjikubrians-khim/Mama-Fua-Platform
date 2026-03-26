@@ -77,6 +77,7 @@ export const bookingApi = {
   create: (data: object) => api.post('/bookings', data),
   list: (params?: object) => api.get('/bookings', { params }),
   get: (id: string) => api.get(`/bookings/${id}`),
+  tracking: (id: string) => api.get(`/bookings/${id}/tracking`),
   accept: (id: string) => api.post(`/bookings/${id}/accept`),
   decline: (id: string, reason?: string) => api.post(`/bookings/${id}/decline`, { reason }),
   start: (id: string) => api.post(`/bookings/${id}/start`),
@@ -108,8 +109,20 @@ export const locationApi = {
   place: (placeId: string) => api.get('/location/place', { params: { place_id: placeId } }),
   coverage: (lat: number, lng: number, serviceId: string) =>
     api.get('/location/coverage', { params: { lat, lng, serviceId } }),
-  nearbyCleaners: (lat: number, lng: number, serviceId: string) =>
-    api.get('/location/cleaners/nearby', { params: { lat, lng, serviceId } }),
+  nearbyCleaners: (params: {
+    lat: number;
+    lng: number;
+    serviceId: string;
+    scheduledAt?: string;
+    minRating?: number;
+    maxPrice?: number;
+    radiusKm?: number;
+    sort?: 'recommended' | 'distance' | 'rating' | 'price';
+  }) => api.get('/location/cleaners/nearby', { params }),
+};
+
+export const reviewsApi = {
+  forCleaner: (cleanerId: string) => api.get(`/reviews/cleaner/${cleanerId}`),
 };
 
 export const userApi = {

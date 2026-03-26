@@ -32,6 +32,10 @@ router.get('/:id', authenticate, async (req: Request, res: Response, next: NextF
       include: {
         user: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
         services: { include: { service: true } },
+        availabilitySlots: {
+          where: { isBlocked: false },
+          orderBy: [{ dayOfWeek: 'asc' }, { startTime: 'asc' }],
+        },
       },
     });
     res.json({ success: true, data: profile });

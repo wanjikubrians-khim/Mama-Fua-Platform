@@ -5,10 +5,12 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useQuery } from '@tanstack/react-query';
 import { Bell, Plus, LogOut, ChevronDown, User } from 'lucide-react';
 import { useState } from 'react';
 import { useAuthStore } from '@/store/auth.store';
 import { Avatar } from '@/components/ui';
+import { userApi } from '@/lib/api';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -16,6 +18,17 @@ export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const homeHref = user?.role === 'CLEANER' ? '/cleaner/dashboard' : '/dashboard';
+
+  const { data: notifRes } = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => userApi.notifications(),
+    enabled: isAuthenticated,
+    refetchInterval: 30000,
+  });
+
+  const unreadCount = (notifRes?.data?.data ?? []).filter(
+    (notification: { isRead: boolean }) => !notification.isRead
+  ).length;
 
   const handleLogout = () => {
     logout();
@@ -50,8 +63,9 @@ export default function Navbar() {
             {/* Notifications bell */}
             <Link href="/notifications" className="btn-icon relative">
               <Bell className="h-5 w-5 text-gray-500" />
-              {/* Uncomment when unread count is wired: */}
-              {/* <span className="notif-dot">3</span> */}
+              {unreadCount > 0 && (
+                <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+              )}
             </Link>
 
             {/* User menu */}
