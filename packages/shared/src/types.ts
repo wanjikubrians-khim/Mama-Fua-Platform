@@ -196,8 +196,10 @@ export interface SocketEvents {
   'cleaner:location': { bookingId: string; lat: number; lng: number; accuracy: number };
   'chat:message': ChatMessagePayload;
   'payment:confirmed': { bookingId: string; paymentId: string };
-  'notification:new': PushPayload & { id: string };
+  'payment:failed': { bookingId: string; reason: string };
+  'notification:new': PushPayload & { id: string; type: string };
   // Client → Server
+  'booking:join': { bookingId: string };
   'cleaner:position': { bookingId: string; lat: number; lng: number; accuracy: number };
   'chat:send': { bookingId: string; body?: string; mediaUrl?: string };
 }

@@ -20,6 +20,7 @@ interface Message {
   senderId: string;
   senderName: string;
   body: string | null;
+  mediaUrl?: string | null;
   createdAt: string;
 }
 
@@ -29,6 +30,7 @@ export default function ChatPanel({ bookingId, onClose }: Props) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [connected, setConnected] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -43,6 +45,11 @@ export default function ChatPanel({ bookingId, onClose }: Props) {
   });
 
   useEffect(() => {
+    if (!accessToken) {
+      setConnected(false);
+      return;
+    }
+
     const socket = io(
       process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') ?? 'http://localhost:3001',
       {
@@ -58,8 +65,23 @@ export default function ChatPanel({ bookingId, onClose }: Props) {
 
     socket.on('disconnect', () => setConnected(false));
 
+    socket.on('chat:error', (payload: { message?: string }) => {
+      setError(payload.message ?? 'Unable to send chat message.');
+    });
+
+    socket.on('booking:error', (payload: { message?: string }) => {
+      setError(payload.message ?? 'Unable to join this chat.');
+    });
+
     socket.on('chat:message', (message: Message) => {
-      setMessages((prev) => [...prev, message]);
+      setError(null);
+      setMessages((prev) => {
+        if (prev.some((entry) => entry.id === message.id)) {
+          return prev;
+        }
+
+        return [...prev, message];
+      });
     });
 
     socketRef.current = socket;
@@ -74,6 +96,7 @@ export default function ChatPanel({ bookingId, onClose }: Props) {
 
   const sendMessage = () => {
     if (!input.trim() || !socketRef.current) return;
+    setError(null);
     socketRef.current.emit('chat:send', { bookingId, body: input.trim() });
     setInput('');
   };
@@ -137,7 +160,19 @@ export default function ChatPanel({ bookingId, onClose }: Props) {
                             : 'rounded-bl-sm border border-white/90 bg-white/88 text-ink-800'
                         }`}
                       >
-                        {message.body}
+                        {message.body && <p>{message.body}</p>}
+                        {message.mediaUrl && (
+                          <a
+                            href={message.mediaUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className={`mt-2 inline-flex text-xs font-semibold underline ${
+                              isMe ? 'text-white/90' : 'text-brand-700'
+                            }`}
+                          >
+                            Open attachment
+                          </a>
+                        )}
                       </div>
                       <span className="px-1 text-xs text-ink-300">
                         {format(new Date(message.createdAt), 'h:mm a')}
@@ -152,6 +187,7 @@ export default function ChatPanel({ bookingId, onClose }: Props) {
         </div>
 
         <div className="border-t border-white/80 bg-white/82 px-4 py-3 backdrop-blur">
+          {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
           <div className="flex items-end gap-3">
             <textarea
               value={input}

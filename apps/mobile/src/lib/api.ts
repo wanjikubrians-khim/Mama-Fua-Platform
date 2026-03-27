@@ -87,6 +87,19 @@ export const cleanerApi = {
   earnings: () => api.get('/cleaners/me/earnings'),
 };
 
+export const userApi = {
+  me: () => api.get('/users/me'),
+  notifications: () => api.get('/users/me/notifications'),
+  markNotificationRead: (id: string) => api.patch(`/users/me/notifications/${id}/read`),
+  markAllNotificationsRead: () => api.patch('/users/me/notifications/read-all'),
+  clearNotifications: (scope: 'all' | 'read' = 'read') =>
+    api.delete('/users/me/notifications', { data: { scope } }),
+  registerDeviceToken: (data: { token: string; platform: 'ios' | 'android' | 'web' }) =>
+    api.post('/users/me/device-tokens', data),
+  unregisterDeviceToken: (token: string) =>
+    api.delete('/users/me/device-tokens', { data: { token } }),
+};
+
 export const locationApi = {
   nearbyCleaners: (lat: number, lng: number, serviceId: string) =>
     api.get('/location/cleaners/nearby', { params: { lat, lng, serviceId } }),

@@ -27,6 +27,7 @@ export const RedisKeys = {
   bookingLock: (id: string) => `booking:lock:${id}`,
   matchQueue: (bookingId: string) => `match:queue:${bookingId}`,
   cleanerPosition: (cleanerId: string) => `cleaner:pos:${cleanerId}`,
+  bookingRoomMember: (bookingId: string, userId: string) => `booking:room:${bookingId}:user:${userId}`,
   rateLimitUser: (userId: string) => `rate:user:${userId}`,
 };
 
@@ -39,4 +40,5 @@ export const TTL = {
   CLEANER_PROFILE: 10 * 60,        // 10 minutes
   BOOKING_LOCK: 5 * 60,            // 5 minutes
   CLEANER_POSITION: 60,            // 60 seconds
+  ROOM_MEMBERSHIP: 2 * 60 * 60,    // 2 hours
 };

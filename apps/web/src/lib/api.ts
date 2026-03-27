@@ -128,8 +128,16 @@ export const reviewsApi = {
 export const userApi = {
   me: () => api.get('/users/me'),
   update: (data: object) => api.patch('/users/me', data),
+  registerDeviceToken: (data: { token: string; platform: 'ios' | 'android' | 'web' }) =>
+    api.post('/users/me/device-tokens', data),
+  unregisterDeviceToken: (token: string) =>
+    api.delete('/users/me/device-tokens', { data: { token } }),
   notifications: () => api.get('/users/me/notifications'),
+  markAllNotificationsRead: () => api.patch('/users/me/notifications/read-all'),
   markRead: (id: string) => api.patch(`/users/me/notifications/${id}/read`),
+  dismissNotification: (id: string) => api.delete(`/users/me/notifications/${id}`),
+  clearNotifications: (scope: 'all' | 'read' = 'read') =>
+    api.delete('/users/me/notifications', { data: { scope } }),
 };
 
 export const paymentsApi = {

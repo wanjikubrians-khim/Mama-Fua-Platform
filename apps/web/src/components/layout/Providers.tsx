@@ -8,6 +8,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { useState } from 'react';
 import Navbar from './Navbar';
 import BottomNav from './BottomNav';
+import { NotificationsRealtimeBridge } from './NotificationsRealtimeBridge';
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(
@@ -25,6 +26,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <NotificationsRealtimeBridge />
       <Navbar />
       <main className="pb-20 sm:pb-0">
         {children}

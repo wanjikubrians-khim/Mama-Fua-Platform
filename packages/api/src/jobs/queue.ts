@@ -130,9 +130,11 @@ reminderQueue.process(async (job: Job<{ bookingId: string }>) => {
 
   // Remind client
   await notifyUser(booking.client.id, {
+    type: 'BOOKING',
     title: 'Job reminder 🗓️',
     body: `Your ${booking.service.name} is scheduled for tomorrow ${scheduledStr}`,
     data: { screen: 'BookingDetail', bookingId },
+    channels: ['IN_APP', 'PUSH', 'EMAIL'],
   });
   await sendSms(
     booking.client.phone,
@@ -142,9 +144,11 @@ reminderQueue.process(async (job: Job<{ bookingId: string }>) => {
   // Remind cleaner
   if (booking.cleaner) {
     await notifyUser(booking.cleaner.id, {
+      type: 'BOOKING',
       title: 'Job reminder 🗓️',
       body: `You have a ${booking.service.name} job tomorrow ${scheduledStr} in ${booking.address.area}`,
       data: { screen: 'BookingDetail', bookingId },
+      channels: ['IN_APP', 'PUSH', 'EMAIL'],
     });
     await sendSms(
       booking.cleaner.phone,

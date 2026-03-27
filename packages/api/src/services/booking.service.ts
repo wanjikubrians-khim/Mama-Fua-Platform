@@ -1,7 +1,8 @@
 // Mama Fua — Booking Service
 // KhimTech | 2026
 
-import { prisma, BookingStatus, BookingMode } from '@mama-fua/database';
+import { prisma } from '@mama-fua/database';
+import type { BookingStatus, BookingMode } from '@prisma/client';
 import {
   BOOKING,
   COMMISSION,
@@ -13,6 +14,7 @@ import { AppError } from '../middleware/errorHandler';
 import { dispatchMatchQueue } from './matching.service';
 import { releaseEscrow, scheduleEscrowRelease } from './payment.service';
 import { notifyUser } from './notification.service';
+import { listChatMessages } from './chat.service';
 import { logger } from '../lib/logger';
 import { redis, RedisKeys } from '../lib/redis';
 
@@ -89,7 +91,7 @@ export async function createBooking(
   if (!addressId) throw new AppError(ERROR_CODES.VALIDATION_ERROR, 'Address is required', 400);
 
   // Commission rate
-  let commissionRate = COMMISSION.STANDARD;
+  let commissionRate: number = COMMISSION.STANDARD;
   if (input.cleanerId) {
     const cp = await prisma.cleanerProfile.findUnique({ where: { userId: input.cleanerId } });
     if (cp && Number(cp.rating) >= 4.8) commissionRate = COMMISSION.PREMIUM_CLEANER;
@@ -137,6 +139,7 @@ export async function createBooking(
   // Notify specific cleaner for BROWSE_PICK
   if (input.mode === 'BROWSE_PICK' && input.cleanerId) {
     await notifyUser(input.cleanerId, {
+      type: 'BOOKING',
       title: 'New booking request',
       body: `${booking.client.firstName} has requested your services on ${new Date(booking.scheduledAt).toDateString()}`,
       data: { screen: 'BookingDetail', bookingId: booking.id },
@@ -338,9 +341,12 @@ export async function acceptBooking(bookingId: string, cleanerId: string) {
   });
 
   await notifyUser(booking.clientId, {
+    type: 'BOOKING',
     title: 'Cleaner accepted!',
     body: 'Your cleaner is confirmed. Track their arrival.',
     data: { screen: 'TrackCleaner', bookingId },
+    channels: ['IN_APP', 'PUSH', 'EMAIL'],
+    fallbackChannels: ['SMS'],
   });
 
   return updated;
@@ -359,6 +365,7 @@ export async function declineBooking(bookingId: string, cleanerId: string, reaso
 
   if (booking.mode === 'BROWSE_PICK') {
     await notifyUser(booking.clientId, {
+      type: 'BOOKING',
       title: 'Cleaner unavailable',
       body: 'Your selected cleaner declined the request. Choose another cleaner to continue.',
       data: { screen: 'BrowseCleaners', bookingId },
@@ -384,9 +391,11 @@ export async function startBooking(bookingId: string, cleanerId: string) {
   });
 
   await notifyUser(booking.clientId, {
+    type: 'BOOKING',
     title: 'Job started!',
     body: 'Your cleaner has checked in and the job is underway.',
     data: { screen: 'BookingDetail', bookingId },
+    fallbackChannels: ['SMS'],
   });
 
   return updated;
@@ -407,9 +416,11 @@ export async function completeBooking(bookingId: string, cleanerId: string) {
   await scheduleEscrowRelease(bookingId);
 
   await notifyUser(booking.clientId, {
+    type: 'REVIEW',
     title: 'Job complete!',
     body: 'Please confirm the job and leave a review. Payment releases in 24 hours.',
     data: { screen: 'WriteReview', bookingId },
+    channels: ['IN_APP', 'PUSH', 'EMAIL'],
   });
 
   return updated;
@@ -486,18 +497,10 @@ export async function raiseDispute(
 export async function getChatMessages(
   bookingId: string,
   userId: string,
+  role: string,
   query: { cursor?: string; limit: number }
 ) {
-  const booking = await getBookingOrThrow(bookingId);
-  const isParty = booking.clientId === userId || booking.cleanerId === userId;
-  if (!isParty) throw new AppError(ERROR_CODES.FORBIDDEN, 'Access denied', 403);
-
-  return prisma.chatMessage.findMany({
-    where: { bookingId, ...(query.cursor && { createdAt: { lt: new Date(query.cursor) } }) },
-    take: query.limit,
-    orderBy: { createdAt: 'desc' },
-    include: { sender: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } } },
-  });
+  return listChatMessages(bookingId, userId, role, query);
 }
 
 export async function submitBid(
@@ -566,9 +569,11 @@ export async function acceptBid(bookingId: string, bidId: string, clientId: stri
   ]);
 
   await notifyUser(bid.cleanerId, {
+    type: 'BOOKING',
     title: 'Your bid was accepted!',
     body: `You have a new job on ${new Date(booking.scheduledAt).toDateString()}`,
     data: { screen: 'BookingDetail', bookingId },
+    channels: ['IN_APP', 'PUSH', 'SMS'],
   });
 
   return updated;

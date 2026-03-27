@@ -40,7 +40,45 @@ const createSchema = z.object({
 router.post('/', requireRole('CLIENT'), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const body = createSchema.parse(req.body);
-    const booking = await BookingService.createBooking(req.user!.sub, body);
+    const address =
+      body.address !== undefined
+        ? {
+            label: body.address.label,
+            addressLine1: body.address.addressLine1,
+            area: body.address.area,
+            lat: body.address.lat,
+            lng: body.address.lng,
+            ...(body.address.addressLine2 !== undefined
+              ? { addressLine2: body.address.addressLine2 }
+              : {}),
+            ...(body.address.city !== undefined ? { city: body.address.city } : {}),
+            ...(body.address.county !== undefined ? { county: body.address.county } : {}),
+            ...(body.address.instructions !== undefined
+              ? { instructions: body.address.instructions }
+              : {}),
+            ...(body.address.saveAddress !== undefined
+              ? { saveAddress: body.address.saveAddress }
+              : {}),
+          }
+        : undefined;
+
+    const booking = await BookingService.createBooking(req.user!.sub, {
+      serviceId: body.serviceId,
+      mode: body.mode,
+      scheduledAt: body.scheduledAt,
+      bookingType: body.bookingType,
+      paymentMethod: body.paymentMethod,
+      ...(body.cleanerId !== undefined ? { cleanerId: body.cleanerId } : {}),
+      ...(body.addressId !== undefined ? { addressId: body.addressId } : {}),
+      ...(address !== undefined ? { address } : {}),
+      ...(body.recurringFrequency !== undefined
+        ? { recurringFrequency: body.recurringFrequency }
+        : {}),
+      ...(body.specialInstructions !== undefined
+        ? { specialInstructions: body.specialInstructions }
+        : {}),
+      ...(body.mpesaPhone !== undefined ? { mpesaPhone: body.mpesaPhone } : {}),
+    });
     res.status(201).json({ success: true, data: booking });
   } catch (err) {
     next(err);
@@ -57,7 +95,11 @@ router.get('/', async (req: Request, res: Response, next: NextFunction) => {
         pageSize: z.coerce.number().max(50).default(20),
       })
       .parse(req.query);
-    const result = await BookingService.listBookings(req.user!.sub, req.user!.role, query);
+    const result = await BookingService.listBookings(req.user!.sub, req.user!.role, {
+      page: query.page,
+      pageSize: query.pageSize,
+      ...(query.status !== undefined ? { status: query.status } : {}),
+    });
     res.json({ success: true, ...result });
   } catch (err) {
     next(err);
@@ -192,7 +234,11 @@ router.post(
           evidenceUrls: z.array(z.string().url()).optional(),
         })
         .parse(req.body);
-      const dispute = await BookingService.raiseDispute(req.params['id']!, req.user!.sub, body);
+      const dispute = await BookingService.raiseDispute(req.params['id']!, req.user!.sub, {
+        reason: body.reason,
+        description: body.description,
+        ...(body.evidenceUrls !== undefined ? { evidenceUrls: body.evidenceUrls } : {}),
+      });
       res.status(201).json({ success: true, data: dispute });
     } catch (err) {
       next(err);
@@ -209,7 +255,15 @@ router.get('/:id/chat', async (req: Request, res: Response, next: NextFunction) 
         limit: z.coerce.number().max(50).default(30),
       })
       .parse(req.query);
-    const messages = await BookingService.getChatMessages(req.params['id']!, req.user!.sub, query);
+    const messages = await BookingService.getChatMessages(
+      req.params['id']!,
+      req.user!.sub,
+      req.user!.role,
+      {
+        limit: query.limit,
+        ...(query.cursor !== undefined ? { cursor: query.cursor } : {}),
+      }
+    );
     res.json({ success: true, data: messages });
   } catch (err) {
     next(err);
@@ -229,7 +283,11 @@ router.post(
           message: z.string().max(500).optional(),
         })
         .parse(req.body);
-      const bid = await BookingService.submitBid(req.params['id']!, req.user!.sub, body);
+      const bid = await BookingService.submitBid(req.params['id']!, req.user!.sub, {
+        proposedAmount: body.proposedAmount,
+        estimatedDuration: body.estimatedDuration,
+        ...(body.message !== undefined ? { message: body.message } : {}),
+      });
       res.status(201).json({ success: true, data: bid });
     } catch (err) {
       next(err);

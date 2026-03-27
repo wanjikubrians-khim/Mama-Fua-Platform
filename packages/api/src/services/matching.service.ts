@@ -160,6 +160,7 @@ export async function dispatchMatchQueue(
     const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
     if (booking) {
       await notifyUser(booking.clientId, {
+        type: 'BOOKING',
         title: 'Still searching...',
         body: 'We are looking for available cleaners in your area. We will notify you shortly.',
         data: { screen: 'BookingDetail', bookingId },
@@ -178,9 +179,11 @@ export async function dispatchMatchQueue(
   await prisma.booking.update({ where: { id: bookingId }, data: { cleanerId: nextCleanerId } });
 
   await notifyUser(nextCleanerId, {
+    type: 'BOOKING',
     title: 'New job available!',
     body: 'A client needs your services. You have 5 minutes to respond.',
     data: { screen: 'JobOffer', bookingId },
+    fallbackChannels: ['SMS'],
   });
 
   logger.info(`Booking ${bookingId} → offered to cleaner ${nextCleanerId}. ${remaining.length} in queue.`);

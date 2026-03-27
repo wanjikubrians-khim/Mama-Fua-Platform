@@ -9,7 +9,7 @@ import { ErrorCode, ERROR_CODES } from '@mama-fua/shared';
 export class AppError extends Error {
   constructor(
     public readonly code: ErrorCode,
-    public readonly message: string,
+    public override readonly message: string,
     public readonly statusCode: number = 400,
     public readonly fields?: Record<string, string>
   ) {

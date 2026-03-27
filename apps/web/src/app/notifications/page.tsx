@@ -58,6 +58,27 @@ export default function NotificationsPage() {
     },
   });
 
+  const markAllRead = useMutation({
+    mutationFn: () => userApi.markAllNotificationsRead(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+
+  const dismissNotification = useMutation({
+    mutationFn: (id: string) => userApi.dismissNotification(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+
+  const clearRead = useMutation({
+    mutationFn: () => userApi.clearNotifications('read'),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+
   const notifications = data ?? [];
   const unreadCount = notifications.filter((notification) => !notification.isRead).length;
   const filtered = notifications.filter((notification) => {
@@ -65,13 +86,6 @@ export default function NotificationsPage() {
     if (filter === 'read') return notification.isRead;
     return true;
   });
-
-  const markAllRead = async () => {
-    const unread = notifications.filter((notification) => !notification.isRead);
-    if (unread.length === 0) return;
-    await Promise.all(unread.map((notification) => userApi.markRead(notification.id)));
-    queryClient.invalidateQueries({ queryKey: ['notifications'] });
-  };
 
   if (!user) {
     return (
@@ -141,14 +155,26 @@ export default function NotificationsPage() {
               })}
             </div>
 
-            <button
-              onClick={markAllRead}
-              disabled={unreadCount === 0}
-              className="mt-5 inline-flex items-center gap-2 rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <CheckCheck className="h-4 w-4" />
-              Mark all as read
-            </button>
+            <div className="mt-5 flex flex-wrap gap-3">
+              <button
+                onClick={() => markAllRead.mutate()}
+                disabled={unreadCount === 0 || markAllRead.isPending}
+                className="inline-flex items-center gap-2 rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <CheckCheck className="h-4 w-4" />
+                Mark all as read
+              </button>
+              <button
+                onClick={() => clearRead.mutate()}
+                disabled={
+                  notifications.filter((notification) => notification.isRead).length === 0 ||
+                  clearRead.isPending
+                }
+                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-ink-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Clear read
+              </button>
+            </div>
           </section>
         </header>
 
@@ -164,7 +190,7 @@ export default function NotificationsPage() {
                     : 'Read updates'}
               </h2>
             </div>
-            {markRead.isPending && (
+            {(markRead.isPending || markAllRead.isPending || clearRead.isPending || dismissNotification.isPending) && (
               <div className="inline-flex items-center gap-2 text-sm text-ink-400">
                 <Loader2 className="h-4 w-4 animate-spin" />
                 Updating
@@ -239,6 +265,12 @@ export default function NotificationsPage() {
                             Mark read
                           </button>
                         )}
+                        <button
+                          onClick={() => dismissNotification.mutate(notification.id)}
+                          className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-ink-700 transition-colors hover:bg-slate-50"
+                        >
+                          Clear
+                        </button>
                         <Link
                           href={href}
                           className="inline-flex items-center gap-2 rounded-2xl bg-ink-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-ink-800"

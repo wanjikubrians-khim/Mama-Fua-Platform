@@ -195,9 +195,12 @@ export async function handleStkCallback(payload: StkCallback): Promise<void> {
 
     // Push notification
     await notifyUser(payment.booking.client.id, {
+      type: 'PAYMENT',
       title: 'Payment confirmed! ✅',
       body: `${formatKES(payment.amount)} received. M-Pesa ref: ${receiptNumber}`,
       data: { screen: 'BookingDetail', bookingId: payment.bookingId },
+      channels: ['IN_APP', 'PUSH', 'EMAIL'],
+      fallbackChannels: ['SMS'],
     });
 
     // SMS confirmation (belt-and-suspenders for payment confirmation)
@@ -209,9 +212,11 @@ export async function handleStkCallback(payload: StkCallback): Promise<void> {
     // Notify cleaner their job is now paid and confirmed
     if (payment.booking.cleaner) {
       await notifyUser(payment.booking.cleaner.id, {
+        type: 'PAYMENT',
         title: 'Job payment received',
         body: `Payment for booking ${payment.booking.bookingRef} has been confirmed.`,
         data: { screen: 'BookingDetail', bookingId: payment.bookingId },
+        channels: ['IN_APP', 'PUSH', 'SMS'],
       });
     }
 
@@ -236,9 +241,11 @@ export async function handleStkCallback(payload: StkCallback): Promise<void> {
     });
 
     await notifyUser(payment.booking.client.id, {
+      type: 'PAYMENT',
       title: 'Payment failed',
       body: `${failureReason}. Please try again.`,
       data: { screen: 'BookingDetail', bookingId: payment.bookingId },
+      channels: ['IN_APP', 'PUSH', 'EMAIL'],
     });
 
     logger.warn(`[M-Pesa] Payment FAILED — Code: ${resultCode} Reason: ${failureReason} Booking: ${payment.booking.bookingRef}`);
@@ -325,9 +332,11 @@ export async function handleB2CResult(payload: B2CResultPayload): Promise<void> 
 
     // Notify cleaner
     await notifyUser(cleanerProfile.user.id, {
+      type: 'PAYMENT',
       title: 'Payout sent! 💰',
       body: `${formatKES(payout.amount)} sent to your M-Pesa. Ref: ${receiptNumber}`,
       data: { screen: 'Wallet' },
+      channels: ['IN_APP', 'PUSH', 'EMAIL'],
     });
 
     await sendSms(
@@ -355,9 +364,11 @@ export async function handleB2CResult(payload: B2CResultPayload): Promise<void> 
     });
 
     await notifyUser(payout.cleaner.user.id, {
+      type: 'PAYMENT',
       title: 'Payout failed',
       body: `Your withdrawal of ${formatKES(payout.amount)} failed: ${failureReason}. Funds returned to wallet.`,
       data: { screen: 'Wallet' },
+      channels: ['IN_APP', 'PUSH', 'EMAIL'],
     });
 
     logger.warn(`[M-Pesa] B2C FAILED — Code: ${resultCode} Reason: ${failureReason}`);

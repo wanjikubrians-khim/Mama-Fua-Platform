@@ -7,8 +7,32 @@ import { verifyAccessToken } from './lib/jwt';
 import { redis, RedisKeys, TTL } from './lib/redis';
 import { prisma } from '@mama-fua/database';
 import { logger } from './lib/logger';
+import {
+  assertBookingRoomAccess,
+  createChatMessage,
+  serialiseChatMessage,
+} from './services/chat.service';
 
 let io: SocketServer;
+
+async function assertCleanerTrackingAccess(bookingId: string, userId: string) {
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    select: { cleanerId: true, status: true },
+  });
+
+  if (!booking) {
+    throw new Error('Booking not found');
+  }
+
+  if (booking.cleanerId !== userId) {
+    throw new Error('Only the assigned cleaner may share live position');
+  }
+
+  if (!['ACCEPTED', 'PAID', 'IN_PROGRESS'].includes(booking.status)) {
+    throw new Error('Live tracking is not active for this booking');
+  }
+}
 
 export function initSocket(server: HttpServer): SocketServer {
   io = new SocketServer(server, {
@@ -31,17 +55,21 @@ export function initSocket(server: HttpServer): SocketServer {
 
   io.on('connection', (socket) => {
     const userId = socket.data['userId'] as string;
-    logger.info(`Socket connected: ${userId}`);
+    const role = socket.data['role'] as string;
 
-    // Join personal room
+    logger.info(`Socket connected: ${userId}`);
     socket.join(`user:${userId}`);
 
-    // Cleaner updates live position
     socket.on(
       'cleaner:position',
       async (data: { bookingId: string; lat: number; lng: number; accuracy: number }) => {
         try {
-          // Store last position in Redis (60s TTL)
+          if (!Number.isFinite(data.lat) || !Number.isFinite(data.lng) || !Number.isFinite(data.accuracy)) {
+            throw new Error('Invalid location payload');
+          }
+
+          await assertCleanerTrackingAccess(data.bookingId, userId);
+
           const updatedAt = new Date();
           await Promise.all([
             redis.setex(
@@ -58,7 +86,7 @@ export function initSocket(server: HttpServer): SocketServer {
               },
             }),
           ]);
-          // Broadcast to booking room
+
           io.to(`booking:${data.bookingId}`).emit('cleaner:location', {
             bookingId: data.bookingId,
             lat: data.lat,
@@ -66,46 +94,48 @@ export function initSocket(server: HttpServer): SocketServer {
             accuracy: data.accuracy,
           });
         } catch (err) {
-          logger.error('Position update error:', err);
+          logger.warn('Position update rejected', err);
+          socket.emit('system:error', { message: err instanceof Error ? err.message : 'Position update failed' });
         }
       }
     );
 
-    // Chat message
     socket.on(
       'chat:send',
       async (data: { bookingId: string; body?: string; mediaUrl?: string }) => {
         try {
-          const msg = await prisma.chatMessage.create({
-            data: {
-              bookingId: data.bookingId,
-              senderId: userId,
-              body: data.body,
-              mediaUrl: data.mediaUrl,
-            },
-            include: {
-              sender: { select: { id: true, firstName: true, lastName: true, avatarUrl: true } },
-            },
+          const message = await createChatMessage(data.bookingId, userId, role, {
+            ...(data.body !== undefined ? { body: data.body } : {}),
+            ...(data.mediaUrl !== undefined ? { mediaUrl: data.mediaUrl } : {}),
           });
-          io.to(`booking:${data.bookingId}`).emit('chat:message', {
-            id: msg.id,
-            bookingId: msg.bookingId,
-            senderId: msg.senderId,
-            senderName: `${msg.sender.firstName} ${msg.sender.lastName}`,
-            body: msg.body,
-            mediaUrl: msg.mediaUrl,
-            createdAt: msg.createdAt.toISOString(),
-          });
+
+          io.to(`booking:${data.bookingId}`).emit('chat:message', serialiseChatMessage(message));
         } catch (err) {
-          logger.error('Chat send error:', err);
+          logger.warn('Chat send rejected', err);
+          socket.emit('chat:error', { message: err instanceof Error ? err.message : 'Unable to send chat message' });
         }
       }
     );
 
-    // Join booking room (called when client opens booking detail screen)
-    socket.on('booking:join', (bookingId: string) => {
-      socket.join(`booking:${bookingId}`);
-      logger.info(`${userId} joined booking room ${bookingId}`);
+    socket.on('booking:join', async (payload: string | { bookingId: string }) => {
+      const bookingId = typeof payload === 'string' ? payload : payload.bookingId;
+
+      try {
+        await assertBookingRoomAccess(bookingId, userId, role);
+        socket.join(`booking:${bookingId}`);
+        await redis.setex(
+          RedisKeys.bookingRoomMember(bookingId, userId),
+          TTL.ROOM_MEMBERSHIP,
+          socket.id
+        );
+        logger.info(`${userId} joined booking room ${bookingId}`);
+      } catch (err) {
+        logger.warn(`Socket join rejected for ${userId} on booking ${bookingId}`, err);
+        socket.emit('booking:error', {
+          bookingId,
+          message: err instanceof Error ? err.message : 'Unable to join booking room',
+        });
+      }
     });
 
     socket.on('disconnect', () => {
@@ -116,12 +146,10 @@ export function initSocket(server: HttpServer): SocketServer {
   return io;
 }
 
-// Emit event to a user from anywhere in the app
 export function emitToUser(userId: string, event: string, data: unknown): void {
   io?.to(`user:${userId}`).emit(event, data);
 }
 
-// Emit event to a booking room
 export function emitToBooking(bookingId: string, event: string, data: unknown): void {
   io?.to(`booking:${bookingId}`).emit(event, data);
 }

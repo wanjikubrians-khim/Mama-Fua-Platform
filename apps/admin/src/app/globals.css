@@ -1,0 +1,155 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --admin-bg: #07111f;
+  --admin-bg-soft: #10203a;
+  --admin-surface: rgba(12, 23, 41, 0.78);
+  --admin-surface-strong: rgba(7, 17, 31, 0.92);
+  --admin-border: rgba(157, 182, 217, 0.18);
+  --admin-border-strong: rgba(157, 182, 217, 0.32);
+  --admin-text: #e6eefc;
+  --admin-text-soft: #9db0d0;
+  --admin-brand: #5ec0dd;
+  --admin-brand-strong: #89ddf4;
+  --admin-success: #41c493;
+  --admin-warning: #f3b85a;
+  --admin-danger: #f57f7f;
+  --admin-shadow: 0 24px 60px -28px rgba(0, 0, 0, 0.7);
+  --admin-shadow-soft: 0 16px 40px -28px rgba(10, 31, 66, 0.75);
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    color: var(--admin-text);
+    font-family: 'Manrope', system-ui, sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(94, 192, 221, 0.2), transparent 28%),
+      radial-gradient(circle at top right, rgba(65, 196, 147, 0.12), transparent 22%),
+      linear-gradient(180deg, #091424 0%, #06101c 56%, #040a14 100%);
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background-image:
+      linear-gradient(rgba(140, 171, 214, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(140, 171, 214, 0.08) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent 90%);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: 'Space Grotesk', 'Manrope', sans-serif;
+    letter-spacing: -0.03em;
+  }
+
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+
+  ::selection {
+    color: #04101b;
+    background: rgba(137, 221, 244, 0.88);
+  }
+
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    background: rgba(157, 182, 217, 0.32);
+  }
+}
+
+@layer components {
+  .admin-shell {
+    @apply relative min-h-screen;
+  }
+
+  .admin-glass {
+    background: var(--admin-surface);
+    border: 1px solid var(--admin-border);
+    box-shadow: var(--admin-shadow-soft);
+    backdrop-filter: blur(20px);
+  }
+
+  .admin-card {
+    @apply admin-glass rounded-[28px];
+  }
+
+  .admin-card-strong {
+    background: var(--admin-surface-strong);
+    border: 1px solid var(--admin-border-strong);
+    box-shadow: var(--admin-shadow);
+    backdrop-filter: blur(24px);
+  }
+
+  .admin-badge {
+    @apply inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em];
+  }
+
+  .admin-badge-brand {
+    color: var(--admin-brand-strong);
+    border-color: rgba(94, 192, 221, 0.28);
+    background: rgba(94, 192, 221, 0.12);
+  }
+
+  .admin-badge-success {
+    color: #7fe5bc;
+    border-color: rgba(65, 196, 147, 0.24);
+    background: rgba(65, 196, 147, 0.12);
+  }
+
+  .admin-badge-warning {
+    color: #ffd08d;
+    border-color: rgba(243, 184, 90, 0.24);
+    background: rgba(243, 184, 90, 0.12);
+  }
+
+  .admin-badge-danger {
+    color: #ffc0c0;
+    border-color: rgba(245, 127, 127, 0.26);
+    background: rgba(245, 127, 127, 0.12);
+  }
+
+  .admin-eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.28em] text-slate-400;
+  }
+
+  .admin-divider {
+    @apply border-t border-white/10;
+  }
+}

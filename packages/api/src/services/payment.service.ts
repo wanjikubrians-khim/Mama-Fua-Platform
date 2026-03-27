@@ -45,9 +45,11 @@ export async function releaseEscrow(bookingId: string): Promise<void> {
   ]);
 
   await notifyUser(booking.cleanerId, {
+    type: 'PAYMENT',
     title: 'Earnings released! 💰',
     body: `${formatKES(booking.cleanerEarnings)} added to your wallet for booking ${booking.bookingRef}`,
     data: { screen: 'Wallet' },
+    channels: ['IN_APP', 'PUSH', 'EMAIL'],
   });
 
   logger.info(`[Escrow] Released ${formatKES(booking.cleanerEarnings)} to cleaner for booking ${booking.bookingRef}`);

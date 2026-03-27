@@ -43,6 +43,24 @@ export const OTP = {
   DEV_CODE: '123456',           // Only used when NODE_ENV=development
 } as const;
 
+// ─── COMMUNICATIONS ─────────────────────────────────────────────────────────
+export const CHAT = {
+  MAX_MESSAGE_LENGTH: 1000,
+  RETENTION_DAYS: 90,
+  ROOM_MEMBERSHIP_TTL_SECONDS: 2 * 60 * 60,
+  ALLOWED_MEDIA_EXTENSIONS: ['.jpg', '.jpeg', '.png'],
+  ACTIVE_STATUSES: ['ACCEPTED', 'PAID', 'IN_PROGRESS', 'COMPLETED', 'CONFIRMED'],
+  CLOSED_STATUSES: ['CANCELLED', 'REFUNDED'],
+} as const;
+
+export const NOTIFICATIONS = {
+  MAX_TITLE_LENGTH: 120,
+  MAX_BODY_LENGTH: 500,
+  MAX_DATA_ITEMS: 16,
+  MAX_DATA_VALUE_LENGTH: 256,
+  DEFAULT_POLL_INTERVAL_MS: 30_000,
+} as const;
+
 // ─── PAGINATION ──────────────────────────────────────────────────────────────
 export const PAGINATION = {
   DEFAULT_PAGE_SIZE: 20,
