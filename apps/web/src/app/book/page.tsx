@@ -2,8 +2,8 @@
 // Mama Fua — Booking Flow Controller
 // KhimTech | 2026
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useMutation } from '@tanstack/react-query';
 import { CalendarDays, CreditCard, MapPin, Sparkles, UserRound } from 'lucide-react';
 import { bookingApi } from '@/lib/api';
@@ -60,25 +60,96 @@ export interface BookingDraft {
     | undefined;
 }
 
-export default function BookPage() {
-  const router = useRouter();
-  const user = useAuthStore((s) => s.user);
-  const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<Partial<BookingDraft>>({
+const BOOKING_RESUME_STORAGE_KEY = 'mama-fua-booking-resume';
+
+function getDefaultDraft(phone?: string | null): Partial<BookingDraft> {
+  return {
     mode: 'AUTO_ASSIGN',
     bookingType: 'ONE_OFF',
     paymentMethod: 'MPESA',
-    mpesaPhone: user?.phone ?? '',
-  });
+    ...(phone ? { mpesaPhone: phone } : {}),
+  };
+}
+
+function buildResumeHref(searchParams: { toString(): string }) {
+  const params = new URLSearchParams(searchParams.toString());
+  params.set('resume', '1');
+  const query = params.toString();
+  return query.length > 0 ? `/book?${query}` : '/book';
+}
+
+export default function BookPage() {
+  return (
+    <Suspense fallback={<BookPageFallback />}>
+      <BookPageContent />
+    </Suspense>
+  );
+}
+
+function BookPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const user = useAuthStore((s) => s.user);
+  const [step, setStep] = useState(0);
+  const [draft, setDraft] = useState<Partial<BookingDraft>>(getDefaultDraft(user?.phone));
+  const [resumeNotice, setResumeNotice] = useState<string | null>(null);
 
   const createBooking = useMutation({
     mutationFn: (data: BookingDraft) => bookingApi.create(data),
     onSuccess: (res) => {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem(BOOKING_RESUME_STORAGE_KEY);
+      }
       router.push(`/bookings/${res.data.data.id}?new=1`);
     },
   });
 
+  useEffect(() => {
+    if (!user?.phone) return;
+
+    setDraft((prev) => {
+      if (prev.mpesaPhone) return prev;
+      return {
+        ...prev,
+        mpesaPhone: user.phone,
+      };
+    });
+  }, [user?.phone]);
+
+  useEffect(() => {
+    if (searchParams.get('resume') !== '1' || typeof window === 'undefined') {
+      return;
+    }
+
+    const raw = window.sessionStorage.getItem(BOOKING_RESUME_STORAGE_KEY);
+    if (!raw) return;
+
+    try {
+      const parsed = JSON.parse(raw) as {
+        step?: number;
+        draft?: Partial<BookingDraft>;
+      };
+
+      if (parsed.draft) {
+        setDraft({
+          ...getDefaultDraft(user?.phone),
+          ...parsed.draft,
+          ...(parsed.draft.mpesaPhone || !user?.phone ? {} : { mpesaPhone: user.phone }),
+        });
+      }
+
+      if (typeof parsed.step === 'number' && Number.isFinite(parsed.step)) {
+        setStep(Math.max(0, Math.floor(parsed.step)));
+      }
+
+      setResumeNotice('Your booking draft was restored so you can continue where you left off.');
+    } catch {
+      window.sessionStorage.removeItem(BOOKING_RESUME_STORAGE_KEY);
+    }
+  }, [searchParams, user?.phone]);
+
   const updateDraft = (updates: Partial<BookingDraft>) => {
+    setResumeNotice(null);
     setDraft((prev) => {
       const nextDraft = { ...prev, ...updates };
       const nextMode = updates.mode ?? prev.mode;
@@ -121,6 +192,10 @@ export default function BookPage() {
           'Review the booking before payment.',
         ];
 
+  useEffect(() => {
+    setStep((currentStep) => Math.min(currentStep, steps.length - 1));
+  }, [steps.length]);
+
   const next = () => setStep((s) => Math.min(s + 1, steps.length - 1));
   const back = () => setStep((s) => Math.max(s - 1, 0));
   const progress = ((step + 1) / steps.length) * 100;
@@ -129,6 +204,24 @@ export default function BookPage() {
     stepDescriptions[step] ?? stepDescriptions[stepDescriptions.length - 1] ?? '';
 
   const handleConfirm = () => {
+    if (!user) {
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(
+          BOOKING_RESUME_STORAGE_KEY,
+          JSON.stringify({ step, draft })
+        );
+      }
+
+      router.push(
+        `/login?role=CLIENT&next=${encodeURIComponent(buildResumeHref(searchParams))}`
+      );
+      return;
+    }
+
+    if (user.role !== 'CLIENT') {
+      return;
+    }
+
     createBooking.mutate(draft as BookingDraft);
   };
 
@@ -201,6 +294,12 @@ export default function BookPage() {
             </div>
           </div>
 
+          {resumeNotice && (
+            <div className="mt-5 rounded-2xl border border-brand-100 bg-brand-50 px-4 py-4 text-sm text-brand-800">
+              {resumeNotice}
+            </div>
+          )}
+
           <div className="mt-6 h-2 overflow-hidden rounded-full bg-slate-100">
             <div
               className="h-full rounded-full bg-brand-600 transition-all duration-300"
@@ -232,8 +331,22 @@ export default function BookPage() {
 
         <div className="grid gap-6 lg:grid-cols-[1.12fr_0.88fr]">
           <section className="section-shell px-5 py-6 sm:px-8 sm:py-8">
-            {step === 0 && <StepService draft={draft} onChange={updateDraft} onNext={next} />}
-            {step === 1 && <StepLocation draft={draft} onChange={updateDraft} onNext={next} />}
+            {step === 0 && (
+              <StepService
+                draft={draft}
+                onChange={updateDraft}
+                onNext={next}
+                prefillService={searchParams.get('service')}
+              />
+            )}
+            {step === 1 && (
+              <StepLocation
+                draft={draft}
+                onChange={updateDraft}
+                onNext={next}
+                canUseSavedAddresses={user?.role === 'CLIENT'}
+              />
+            )}
             {step === 2 && (
               <StepDateTime
                 draft={draft}
@@ -255,6 +368,30 @@ export default function BookPage() {
                 isLoading={createBooking.isPending}
                 error={createBooking.error as Error | null}
                 stepNumber={steps.length}
+                canLoadProfile={user?.role === 'CLIENT'}
+                submitLabel={
+                  !user
+                    ? 'Continue to sign in'
+                    : user.role !== 'CLIENT'
+                      ? 'Client account required'
+                      : undefined
+                }
+                notice={
+                  !user
+                    ? {
+                        tone: 'info',
+                        title: 'Sign in at the last step',
+                        body: 'We let you build the booking first. When you continue, we will sign you in and bring you back to this draft.',
+                      }
+                    : user.role !== 'CLIENT'
+                      ? {
+                          tone: 'error',
+                          title: 'Client account required',
+                          body: 'Only client accounts can place bookings. Sign in with a client account to finish this booking.',
+                        }
+                      : null
+                }
+                disableSubmit={!!user && user.role !== 'CLIENT'}
               />
             )}
           </section>
@@ -287,6 +424,49 @@ export default function BookPage() {
                       </div>
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function BookPageFallback() {
+  return (
+    <div className="min-h-screen px-4 py-6 sm:px-6">
+      <div className="mx-auto max-w-6xl space-y-6">
+        <header className="section-shell px-5 py-5 sm:px-6">
+          <div className="h-6 w-28 animate-pulse rounded-full bg-slate-200" />
+          <div className="mt-4 h-10 w-48 animate-pulse rounded-2xl bg-slate-200" />
+          <div className="mt-3 h-4 w-72 animate-pulse rounded-full bg-slate-100" />
+          <div className="mt-6 h-2 rounded-full bg-slate-100" />
+        </header>
+
+        <div className="grid gap-6 lg:grid-cols-[1.12fr_0.88fr]">
+          <section className="section-shell px-5 py-6 sm:px-8 sm:py-8">
+            <div className="space-y-4">
+              <div className="h-8 w-40 animate-pulse rounded-2xl bg-slate-200" />
+              <div className="h-24 animate-pulse rounded-[1.6rem] bg-slate-100" />
+              <div className="h-24 animate-pulse rounded-[1.6rem] bg-slate-100" />
+              <div className="h-24 animate-pulse rounded-[1.6rem] bg-slate-100" />
+            </div>
+          </section>
+
+          <aside className="space-y-4">
+            <div className="dark-panel px-6 py-6">
+              <div className="h-4 w-24 animate-pulse rounded-full bg-white/10" />
+              <div className="mt-4 h-10 w-56 animate-pulse rounded-2xl bg-white/10" />
+            </div>
+            <div className="section-shell p-5">
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((item) => (
+                  <div
+                    key={item}
+                    className="h-20 animate-pulse rounded-xl border border-slate-200 bg-slate-50"
+                  />
                 ))}
               </div>
             </div>

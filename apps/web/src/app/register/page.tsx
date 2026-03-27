@@ -42,6 +42,14 @@ const highlights = [
   },
 ];
 
+function getSafeNextPath(value: string | null) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+    return null;
+  }
+
+  return value;
+}
+
 export default function RegisterPage() {
   return (
     <Suspense fallback={<RegisterPageFallback />}>
@@ -59,15 +67,26 @@ function RegisterPageContent() {
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
   const [otpSent, setOtpSent] = useState(false);
+  const nextPath = getSafeNextPath(searchParams.get('next'));
 
   const form = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      role: (searchParams.get('role') as 'CLIENT' | 'CLEANER') || 'CLEANER',
+      role: (searchParams.get('role') as 'CLIENT' | 'CLEANER') || 'CLIENT',
       phone: searchParams.get('phone') || '',
       otp: searchParams.get('otp') || '',
     },
   });
+
+  const selectedRole = form.watch('role');
+  const isClientSignup = selectedRole === 'CLIENT';
+  const signInParams = new URLSearchParams({ role: selectedRole });
+
+  if (nextPath) {
+    signInParams.set('next', nextPath);
+  }
+
+  const signInHref = `/login?${signInParams.toString()}`;
 
   // If OTP is provided in URL, skip to OTP step
   useEffect(() => {
@@ -110,7 +129,7 @@ function RegisterPageContent() {
       });
       const { accessToken, refreshToken, user } = res.data.data;
       setAuth(user, accessToken, refreshToken);
-      router.push(data.role === 'CLEANER' ? '/cleaner/dashboard' : '/dashboard');
+      router.push(nextPath ?? (data.role === 'CLEANER' ? '/cleaner/dashboard' : '/dashboard'));
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response
         ?.data?.error?.message;
@@ -132,11 +151,14 @@ function RegisterPageContent() {
 
             <p className="mt-10 text-sm font-medium text-brand-100">Join our community</p>
             <h1 className="mt-3 max-w-md text-4xl text-white">
-              Start your journey as a trusted cleaner
+              {isClientSignup
+                ? 'Create a client account and finish your booking faster'
+                : 'Start your journey as a trusted cleaner'}
             </h1>
             <p className="mt-4 max-w-md text-sm leading-7 text-white/70">
-              Create your profile, set your rates, and start earning. Our platform handles payments,
-              reviews, and connects you with local clients.
+              {isClientSignup
+                ? 'Save your addresses, keep job updates in one place, and pay securely when your booking is ready.'
+                : 'Create your profile, set your rates, and start earning. Our platform handles payments, reviews, and connects you with local clients.'}
             </p>
           </div>
 
@@ -167,7 +189,9 @@ function RegisterPageContent() {
               </Link>
               <p className="mt-5 text-sm font-medium text-brand-700">Create your account</p>
               <p className="mt-2 text-sm leading-7 text-ink-500">
-                Join as a cleaner and start building your profile.
+                {isClientSignup
+                  ? 'Join as a client to book trusted cleaners and track every step in one place.'
+                  : 'Join as a cleaner and start building your profile.'}
               </p>
             </div>
 
@@ -175,9 +199,13 @@ function RegisterPageContent() {
               {step === 'details' ? (
                 <form onSubmit={form.handleSubmit(onDetailsSubmit)} className="space-y-6">
                   <div>
-                    <h2 className="text-3xl">Sign up as a cleaner</h2>
+                    <h2 className="text-3xl">
+                      {isClientSignup ? 'Sign up to book a cleaner' : 'Sign up as a cleaner'}
+                    </h2>
                     <p className="mt-2 text-sm text-ink-500">
-                      We&apos;ll send a code to verify your phone.
+                      {isClientSignup
+                        ? 'We&apos;ll verify your phone number before creating your client account.'
+                        : 'We&apos;ll send a code to verify your phone.'}
                     </p>
                   </div>
 
@@ -318,7 +346,7 @@ function RegisterPageContent() {
 
                   <p className="text-center text-sm text-ink-500">
                     Already have an account?{' '}
-                    <Link href="/login" className="font-semibold text-brand-700 hover:underline">
+                    <Link href={signInHref} className="font-semibold text-brand-700 hover:underline">
                       Sign in
                     </Link>
                   </p>

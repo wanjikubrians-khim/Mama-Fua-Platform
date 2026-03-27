@@ -13,6 +13,7 @@ interface Props {
   draft: Partial<BookingDraft>;
   onChange: (updates: Partial<BookingDraft>) => void;
   onNext: () => void;
+  canUseSavedAddresses?: boolean;
 }
 
 interface SavedAddress {
@@ -27,7 +28,12 @@ interface SavedAddress {
   instructions?: string | null;
 }
 
-export default function StepLocation({ draft, onChange, onNext }: Props) {
+export default function StepLocation({
+  draft,
+  onChange,
+  onNext,
+  canUseSavedAddresses = false,
+}: Props) {
   const [mode, setMode] = useState<'saved' | 'new'>('saved');
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState<AutocompleteResult[]>([]);
@@ -42,6 +48,7 @@ export default function StepLocation({ draft, onChange, onNext }: Props) {
   const { data: savedRes } = useQuery({
     queryKey: ['my-addresses'],
     queryFn: () => userApi.me(),
+    enabled: canUseSavedAddresses,
   });
   const savedAddresses: SavedAddress[] = savedRes?.data?.data?.addresses ?? [];
 
@@ -223,6 +230,16 @@ export default function StepLocation({ draft, onChange, onNext }: Props) {
 
       {(mode === 'new' || savedAddresses.length === 0) && (
         <div className="space-y-4">
+          {!canUseSavedAddresses && (
+            <div className="card-muted shine-panel p-4">
+              <p className="text-sm font-semibold text-ink-900">Continue as a guest for now</p>
+              <p className="mt-2 text-sm leading-6 text-ink-500">
+                Add the address manually. You can sign in on the final step and we&apos;ll bring
+                you back to this booking draft.
+              </p>
+            </div>
+          )}
+
           <div className="relative">
             <MapPin className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-ink-400" />
             <input

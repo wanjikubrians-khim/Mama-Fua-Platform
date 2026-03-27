@@ -30,6 +30,14 @@ interface Props {
   isLoading: boolean;
   error: Error | null;
   stepNumber?: number;
+  canLoadProfile?: boolean;
+  submitLabel?: string | undefined;
+  disableSubmit?: boolean;
+  notice?: {
+    tone: 'info' | 'error';
+    title: string;
+    body: string;
+  } | null;
 }
 
 const MODE_LABELS = {
@@ -58,12 +66,17 @@ export default function StepConfirm({
   isLoading,
   error,
   stepNumber = 4,
+  canLoadProfile = true,
+  submitLabel,
+  disableSubmit = false,
+  notice = null,
 }: Props) {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
 
   const { data: profileRes } = useQuery({
     queryKey: ['my-profile-confirm'],
     queryFn: () => userApi.me(),
+    enabled: canLoadProfile,
   });
 
   const walletBalance: number = profileRes?.data?.data?.clientProfile?.walletBalance ?? 0;
@@ -223,6 +236,31 @@ export default function StepConfirm({
           <p className="mt-2 text-sm text-ink-500">Choose how you want to settle this booking.</p>
         </div>
 
+        {notice && (
+          <div
+            className={`rounded-[1.5rem] border px-4 py-4 ${
+              notice.tone === 'error'
+                ? 'border-red-200 bg-red-50'
+                : 'border-brand-100 bg-brand-50'
+            }`}
+          >
+            <p
+              className={`text-sm font-semibold ${
+                notice.tone === 'error' ? 'text-red-800' : 'text-brand-800'
+              }`}
+            >
+              {notice.title}
+            </p>
+            <p
+              className={`mt-2 text-sm leading-6 ${
+                notice.tone === 'error' ? 'text-red-600' : 'text-brand-700'
+              }`}
+            >
+              {notice.body}
+            </p>
+          </div>
+        )}
+
         <div className="space-y-3">
           {paymentOptions.map((option) => {
             const selected = draft.paymentMethod === option.value;
@@ -317,7 +355,7 @@ export default function StepConfirm({
 
       <button
         onClick={onConfirm}
-        disabled={!canPay || isLoading}
+        disabled={!canPay || isLoading || disableSubmit}
         className="btn-primary w-full py-4 text-base disabled:opacity-40 disabled:cursor-not-allowed"
       >
         {isLoading ? (
@@ -326,7 +364,7 @@ export default function StepConfirm({
             Creating booking...
           </span>
         ) : (
-          `${confirmLabel} · ${formatKES(draft.servicePrice)}`
+          `${submitLabel ?? confirmLabel} · ${formatKES(draft.servicePrice)}`
         )}
       </button>
 

@@ -2,6 +2,7 @@
 // Mama Fua — Step 1: Service Selection
 // KhimTech | 2026
 
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { formatKES } from '@mama-fua/shared';
@@ -12,6 +13,7 @@ interface Props {
   draft: Partial<BookingDraft>;
   onChange: (updates: Partial<BookingDraft>) => void;
   onNext: () => void;
+  prefillService?: string | null;
 }
 
 const BOOKING_MODES: { value: BookingMode; label: string; desc: string; icon: React.ReactNode }[] =
@@ -65,7 +67,30 @@ const SERVICE_ICONS: Record<string, string> = {
   DEEP_CLEANING: '✨',
 };
 
-export default function StepService({ draft, onChange, onNext }: Props) {
+const SERVICE_SHORTCUTS: Record<string, string[]> = {
+  HOME_CLEANING: ['home', 'home-cleaning'],
+  LAUNDRY: ['laundry', 'mama-fua', 'laundry-mama-fua'],
+  OFFICE_CLEANING: ['office', 'office-clean', 'office-cleaning'],
+  POST_CONSTRUCTION: ['post-construction', 'construction'],
+  DEEP_CLEANING: ['deep', 'deep-clean', 'deep-cleaning'],
+};
+
+function normaliseServiceToken(value: string) {
+  return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
+
+function matchesPrefill(service: Service, prefillService?: string | null) {
+  if (!prefillService) return false;
+
+  const token = normaliseServiceToken(prefillService);
+  const category = normaliseServiceToken(service.category);
+  const name = normaliseServiceToken(service.name);
+  const aliases = SERVICE_SHORTCUTS[service.category] ?? [];
+
+  return token === category || token === name || aliases.includes(token);
+}
+
+export default function StepService({ draft, onChange, onNext, prefillService }: Props) {
   const { data, isLoading } = useQuery<Service[]>({
     queryKey: ['services'],
     queryFn: async () => {
@@ -76,6 +101,20 @@ export default function StepService({ draft, onChange, onNext }: Props) {
 
   const services: Service[] = data ?? [];
   const canProceed = !!draft.serviceId;
+
+  useEffect(() => {
+    if (draft.serviceId || services.length === 0 || !prefillService) return;
+
+    const matched = services.find((service) => matchesPrefill(service, prefillService));
+    if (!matched) return;
+
+    onChange({
+      serviceId: matched.id,
+      serviceName: matched.name,
+      baseServicePrice: matched.basePrice,
+      servicePrice: matched.basePrice,
+    });
+  }, [draft.serviceId, onChange, prefillService, services]);
 
   return (
     <div className="space-y-8">

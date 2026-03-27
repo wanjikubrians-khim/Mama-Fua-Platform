@@ -2,8 +2,8 @@
 // Mama Fua — Login Page
 // KhimTech | 2026
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -41,12 +41,39 @@ const highlights = [
   },
 ];
 
+function getSafeNextPath(value: string | null) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) {
+    return null;
+  }
+
+  return value;
+}
+
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginPageFallback />}>
+      <LoginPageContent />
+    </Suspense>
+  );
+}
+
+function LoginPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
+  const requestedRole = searchParams.get('role') === 'CLEANER' ? 'CLEANER' : 'CLIENT';
+  const nextPath = getSafeNextPath(searchParams.get('next'));
+  const registerParams = new URLSearchParams();
+
+  registerParams.set('role', requestedRole);
+  if (nextPath) {
+    registerParams.set('next', nextPath);
+  }
+
+  const registerHref = `/register?${registerParams.toString()}`;
 
   const phoneForm = useForm<PhoneForm>({ resolver: zodResolver(phoneSchema) });
   const otpForm = useForm<OtpForm>({ resolver: zodResolver(otpSchema) });
@@ -71,11 +98,21 @@ export default function LoginPage() {
       const res = await authApi.verifyOtp(phone, data.otp);
       const { isNewUser, accessToken, refreshToken, user } = res.data.data;
       if (isNewUser) {
-        router.push(`/register?phone=${encodeURIComponent(phone)}&otp=${data.otp}`);
+        const params = new URLSearchParams({
+          phone,
+          otp: data.otp,
+          role: requestedRole,
+        });
+
+        if (nextPath) {
+          params.set('next', nextPath);
+        }
+
+        router.push(`/register?${params.toString()}`);
         return;
       }
       setAuth(user, accessToken, refreshToken);
-      router.push(user.role === 'CLEANER' ? '/cleaner/dashboard' : '/dashboard');
+      router.push(nextPath ?? (user.role === 'CLEANER' ? '/cleaner/dashboard' : '/dashboard'));
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response
         ?.data?.error?.message;
@@ -186,7 +223,10 @@ export default function LoginPage() {
 
                   <p className="text-center text-sm text-ink-500">
                     No account?{' '}
-                    <Link href="/register" className="font-semibold text-brand-700 hover:underline">
+                    <Link
+                      href={registerHref}
+                      className="font-semibold text-brand-700 hover:underline"
+                    >
                       Sign up
                     </Link>
                   </p>
@@ -250,6 +290,37 @@ export default function LoginPage() {
                   </button>
                 </form>
               )}
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}
+
+function LoginPageFallback() {
+  return (
+    <div className="min-h-screen px-4 py-8 sm:px-6">
+      <div className="mx-auto grid max-w-5xl gap-6 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[0.88fr_1.12fr]">
+        <aside className="dark-panel hidden flex-col justify-between px-8 py-8 lg:flex">
+          <div>
+            <div className="h-10 w-28 animate-pulse rounded-xl bg-white/10" />
+            <div className="mt-10 h-4 w-28 animate-pulse rounded-full bg-white/10" />
+            <div className="mt-4 h-10 w-72 animate-pulse rounded-2xl bg-white/10" />
+            <div className="mt-4 h-4 w-80 animate-pulse rounded-full bg-white/10" />
+          </div>
+        </aside>
+
+        <section className="section-shell flex items-center justify-center px-5 py-8 sm:px-8">
+          <div className="w-full max-w-md space-y-8">
+            <div className="h-10 w-28 animate-pulse rounded-xl bg-slate-200" />
+            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8">
+              <div className="space-y-4">
+                <div className="h-8 w-40 animate-pulse rounded-2xl bg-slate-200" />
+                <div className="h-12 animate-pulse rounded-xl bg-slate-100" />
+                <div className="h-12 animate-pulse rounded-xl bg-slate-100" />
+                <div className="h-12 animate-pulse rounded-xl bg-slate-200" />
+              </div>
             </div>
           </div>
         </section>
