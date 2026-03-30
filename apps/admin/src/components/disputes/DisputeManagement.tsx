@@ -26,7 +26,8 @@ import {
   Scale,
   Gavel,
   Shield,
-  AlertCircle
+  AlertCircle,
+  X
 } from 'lucide-react';
 import { formatKES } from '@mama-fua/shared';
 
