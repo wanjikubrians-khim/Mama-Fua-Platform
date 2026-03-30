@@ -1,0 +1,11 @@
+{
+  "buildCommand": "pnpm build",
+  "devCommand": "pnpm dev --port 3000",
+  "installCommand": "pnpm install --frozen-lockfile",
+  "framework": "nextjs",
+  "functions": {
+    "packages/api/src/**/*.ts": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}

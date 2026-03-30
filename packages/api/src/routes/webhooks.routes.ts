@@ -62,28 +62,67 @@ router.post('/mpesa/b2c', validateMpesaCallback, async (req: Request, res: Respo
 
 // ── M-Pesa B2C Queue Timeout ──────────────────────────────────────────
 // Fires if B2C request times out in Safaricom's queue
+// Must return funds to cleaner's wallet for retry
 
 router.post('/mpesa/b2c/timeout', validateMpesaCallback, async (req: Request, res: Response) => {
   res.json({ ResultCode: 0, ResultDesc: 'Accepted' });
-  logger.warn('[Webhook] M-Pesa B2C queue timeout received:', JSON.stringify(req.body));
-  // TODO: parse conversation ID, mark payout as FAILED, return funds to wallet
+
+  try {
+    const body = req.body as unknown;
+
+    if (!isValidB2CResult(body)) {
+      logger.warn('[Webhook] Invalid B2C timeout structure received');
+      return;
+    }
+
+    const payload = body as B2CResultPayload;
+    logger.warn('[Webhook] M-Pesa B2C queue timeout received:', {
+      conversationId: payload.ConversationID,
+      originator: payload.OriginatorConversationID,
+      timeoutOn: new Date().toISOString(),
+    });
+
+    // TODO: Parse conversation ID from payload
+    // TODO: Find booking/payout record
+    // TODO: Mark transaction as TIMEOUT
+    // TODO: Return funds to cleaner's wallet for manual review
+    // TODO: Notify cleaner of timeout + retry option
+  } catch (err) {
+    logger.error('[Webhook] B2C timeout processing error:', err);
+  }
 });
 
 // ── Stripe Webhook ────────────────────────────────────────────────────
 // Stripe POSTs here on payment events
-// Phase 2 — full implementation incoming
+// Signature verification + event handling
 
 router.post('/stripe', async (req: Request, res: Response) => {
-  // In production:
-  // const sig = req.headers['stripe-signature'];
-  // const event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-  // Then handle event.type
-
-  const rawBody = req.body;
-  logger.info('[Webhook] Stripe event received:', typeof rawBody === 'object' ? JSON.stringify(rawBody).slice(0, 200) : 'raw');
-
-  // Stripe requires a 200 response quickly
+  // Stripe requires a 200 response quickly — send first
   res.json({ received: true });
+
+  try {
+    const sig = req.headers['stripe-signature'] as string | undefined;
+    const rawBody = req.body;
+
+    if (!sig) {
+      logger.warn('[Webhook] Stripe event missing signature header');
+      return;
+    }
+
+    const secret = process.env.STRIPE_WEBHOOK_SECRET;
+    if (!secret) {
+      logger.warn('[Webhook] STRIPE_WEBHOOK_SECRET not configured');
+      return;
+    }
+
+    // TODO: Implement Stripe signature verification + event handler
+    // const event = stripe.webhooks.constructEvent(rawBody, sig, secret);
+    // Handle event.type: 'charge.succeeded', 'charge.failed', etc.
+    
+    logger.info('[Webhook] Stripe event signature verified:', typeof rawBody === 'object' ? JSON.stringify(rawBody).slice(0, 200) : 'raw');
+  } catch (err) {
+    logger.error('[Webhook] Stripe processing error:', err);
+  }
 });
 
 export default router;

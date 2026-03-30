@@ -32,7 +32,7 @@ const app = express();
 app.use(helmet());
 app.use(
   cors({
-    origin: (process.env.ALLOWED_ORIGINS ?? '').split(',').map((o) => o.trim()),
+    origin: (process.env.ALLOWED_ORIGINS?.split(',') ?? []).map((o) => o.trim()).filter(Boolean),
     credentials: true,
   })
 );
