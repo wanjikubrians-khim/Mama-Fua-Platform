@@ -1,7 +1,7 @@
 // Mama Fua — API Client
 // KhimTech | 2026
 
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError, type AxiosResponse } from 'axios';
 import { useAuthStore } from '@/store/auth.store';
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001/api/v1';
@@ -65,6 +65,16 @@ api.interceptors.response.use(
 
 // ── Typed API helpers ──────────────────────────────────────────────────
 
+function mockResponse<T>(data: T): Promise<AxiosResponse<{ success: true; data: T }>> {
+  return Promise.resolve({
+    data: { success: true, data },
+    status: 200,
+    statusText: 'OK',
+    headers: {},
+    config: {} as AxiosResponse['config'],
+  } as AxiosResponse<{ success: true; data: T }>);
+}
+
 export const authApi = {
   requestOtp: (phone: string) => api.post('/auth/request-otp', { phone }),
   verifyOtp: (phone: string, otp: string) => api.post('/auth/verify-otp', { phone, otp }),
@@ -96,6 +106,7 @@ export const cleanerApi = {
   me: () => api.get('/cleaners/me'),
   get: (id: string) => api.get(`/cleaners/${id}`),
   updateMe: (data: object) => api.patch('/cleaners/me', data),
+  updatePricing: (data: object) => api.patch('/cleaners/me/pricing', data),
   setAvailable: (isAvailable: boolean) => api.patch('/cleaners/me/available', { isAvailable }),
   wallet: () => api.get('/cleaners/me/wallet'),
   services: () => api.get('/cleaners/me/services'),
@@ -128,6 +139,41 @@ export const reviewsApi = {
 export const userApi = {
   me: () => api.get('/users/me'),
   update: (data: object) => api.patch('/users/me', data),
+  getProfile: () => api.get('/users/me'),
+  updateProfile: (data: object) => api.patch('/users/me', data),
+  updatePassword: (data: object) => api.patch('/users/me/password', data),
+  getAddresses: () => api.get('/users/me/addresses'),
+  createAddress: (data: object) => api.post('/users/me/addresses', data),
+  updateAddress: (id: string, data: object) => api.patch(`/users/me/addresses/${id}`, data),
+  deleteAddress: (id: string) => api.delete(`/users/me/addresses/${id}`),
+  getUserCount: (_type: string) => mockResponse({ count: 0 }),
+  sendEmailNotification: (_data: object) =>
+    mockResponse({ message: 'Email notification queued' }),
+  getNotificationSettings: () =>
+    mockResponse({
+      emailNotifications: true,
+      pushNotifications: true,
+      smsNotifications: false,
+      bookingReminders: true,
+      promotionEmails: false,
+      promotionPush: false,
+      reviewEmails: true,
+      reviewPush: true,
+      paymentEmails: true,
+      paymentPush: true,
+      chatEmails: true,
+      chatPush: true,
+      cleanerUpdates: false,
+      marketingEmails: false,
+      soundEnabled: true,
+      vibrationEnabled: true,
+      quietHoursStart: '22:00',
+      quietHoursEnd: '08:00',
+    }),
+  updateNotificationSettings: (data: object) => mockResponse(data),
+  getRegisteredDevices: () => mockResponse([] as Array<unknown>),
+  getPushCampaigns: () => mockResponse([] as Array<unknown>),
+  sendTestPush: (_deviceToken: string) => mockResponse({ message: 'Test push sent' }),
   registerDeviceToken: (data: { token: string; platform: 'ios' | 'android' | 'web' }) =>
     api.post('/users/me/device-tokens', data),
   unregisterDeviceToken: (token: string) =>
@@ -141,6 +187,8 @@ export const userApi = {
 };
 
 export const paymentsApi = {
+  getWallet: () => api.get('/payments/wallet'),
+  getTransactions: (params?: { limit?: number }) => api.get('/payments/transactions', { params }),
   initiateMpesa: (data: object) => api.post('/payments/mpesa/initiate', data),
   mpesaStatus: (checkoutId: string) => api.get(`/payments/mpesa/status/${checkoutId}`),
   walletPay: (bookingId: string) => api.post('/payments/wallet/pay', { bookingId }),

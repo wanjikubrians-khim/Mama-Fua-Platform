@@ -56,6 +56,57 @@ router.post('/wallet/pay', requireRole('CLIENT'), async (req: Request, res: Resp
   } catch (err) { next(err); }
 });
 
+// GET /payments/wallet
+router.get('/wallet', requireRole('CLIENT'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const clientProfile = await prisma.clientProfile.findUnique({
+      where: { userId: req.user!.sub },
+      select: { walletBalance: true },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        balance: clientProfile?.walletBalance ?? 0,
+      },
+    });
+  } catch (err) { next(err); }
+});
+
+// GET /payments/transactions
+router.get('/transactions', requireRole('CLIENT'), async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const limit = z.coerce.number().min(1).max(200).default(100).parse(req.query['limit']);
+    const payments = await prisma.payment.findMany({
+      where: { payerId: req.user!.sub },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      include: {
+        booking: {
+          select: {
+            bookingRef: true,
+          },
+        },
+      },
+    });
+
+    const transactions = payments.map((payment: (typeof payments)[number]) => ({
+      id: payment.id,
+      amount: payment.amount,
+      createdAt: payment.createdAt,
+      status: payment.status,
+      type: payment.refundedAt || payment.status === 'REFUNDED' ? 'REFUND' : 'PAYMENT',
+      description: payment.booking
+        ? `Booking ${payment.booking.bookingRef}`
+        : `${payment.method} payment`,
+      reference: payment.mpesaReceiptNumber ?? payment.booking?.bookingRef ?? payment.id,
+      method: payment.method,
+    }));
+
+    res.json({ success: true, data: transactions });
+  } catch (err) { next(err); }
+});
+
 // GET /payments/booking/:bookingId
 router.get('/booking/:bookingId', async (req: Request, res: Response, next: NextFunction) => {
   try {

@@ -2,7 +2,7 @@
 // Mama Fua — Booking Detail Page
 // KhimTech | 2026
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { format } from 'date-fns';
@@ -79,6 +79,14 @@ const STATUS_CONFIG: Record<string, { label: string; tone: string; desc: string 
 };
 
 export default function BookingDetailPage() {
+  return (
+    <Suspense fallback={<BookingDetailPageFallback />}>
+      <BookingDetailPageContent />
+    </Suspense>
+  );
+}
+
+function BookingDetailPageContent() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -522,6 +530,17 @@ export default function BookingDetailPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function BookingDetailPageFallback() {
+  return (
+    <div className="flex min-h-screen items-center justify-center px-4 py-8">
+      <div className="section-shell shine-panel px-10 py-10 text-center">
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-brand-600" />
+        <p className="mt-4 text-sm text-ink-500">Loading booking details...</p>
+      </div>
     </div>
   );
 }
