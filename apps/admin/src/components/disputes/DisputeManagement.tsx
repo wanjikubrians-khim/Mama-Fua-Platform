@@ -2,31 +2,15 @@
 // Mama Fua — Dispute Management Component
 // KhimTech | 2026
 
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { 
   AlertTriangle, 
-  CheckCircle, 
-  XCircle, 
-  Clock, 
   Users, 
   DollarSign, 
-  MessageSquare, 
-  FileText, 
   Search,
-  Filter,
-  RefreshCw,
   Eye,
-  Download,
-  Calendar,
-  Info,
   Loader2,
-  ChevronLeft,
-  ChevronRight,
-  Scale,
-  Gavel,
-  Shield,
-  AlertCircle,
   X
 } from 'lucide-react';
 import { formatKES } from '@mama-fua/shared';
@@ -44,19 +28,6 @@ interface Dispute {
   refundAmount: number;
   createdAt: string;
   resolutionTarget: string;
-  evidence?: Array<{
-    type: 'IMAGE' | 'DOCUMENT' | 'MESSAGE';
-    url: string;
-    description: string;
-    uploadedBy: 'CLIENT' | 'CLEANER' | 'ADMIN';
-    uploadedAt: string;
-  }>;
-  messages?: Array<{
-    id: string;
-    sender: 'CLIENT' | 'CLEANER' | 'ADMIN';
-    message: string;
-    timestamp: string;
-  }>;
 }
 
 export default function DisputeManagement() {
@@ -64,14 +35,10 @@ export default function DisputeManagement() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [severityFilter, setSeverityFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [resolutionNotes, setResolutionNotes] = useState('');
-
-  const queryClient = useQueryClient();
 
   // Mock API call
   const { data: disputesData, isLoading: disputesLoading } = useQuery({
-    queryKey: ['disputes', statusFilter, severityFilter, currentPage, searchQuery],
+    queryKey: ['disputes', statusFilter, severityFilter, searchQuery],
     queryFn: async () => {
       // Mock data
       const mockDisputes: Dispute[] = [
@@ -81,7 +48,7 @@ export default function DisputeManagement() {
           clientName: 'John Kamau',
           cleanerName: 'Grace Wanjiru',
           reason: 'Service Quality',
-          description: 'Client claims cleaner did not complete deep cleaning as agreed. Only basic cleaning was performed.',
+          description: 'Client claims cleaner did not complete deep cleaning as agreed.',
           status: 'OPEN',
           severity: 'MEDIUM',
           refundAmount: 50000,
@@ -126,7 +93,7 @@ export default function DisputeManagement() {
         disputes: filtered,
         totalCount: filtered.length,
         totalPages: Math.ceil(filtered.length / 10),
-        currentPage: currentPage,
+        currentPage: 1,
       };
     },
   });
@@ -244,6 +211,10 @@ export default function DisputeManagement() {
                           <DollarSign className="h-3 w-3" />
                           <span>{formatKES(dispute.refundAmount)}</span>
                         </div>
+                        
+                        <div className="flex items-center gap-1">
+                          <span>{format(new Date(dispute.createdAt), 'MMM dd, yyyy')}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -266,11 +237,8 @@ export default function DisputeManagement() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="relative w-full max-w-2xl rounded-lg bg-slate-900 p-6">
             <button
-              onClick={() => {
-                setSelectedDispute(null);
-                setResolutionNotes('');
-              }}
-              className="btn-ghost p-2"
+              onClick={() => setSelectedDispute(null)}
+              className="btn-ghost p-2 absolute right-4 top-4"
             >
               <X className="h-5 w-5" />
             </button>
@@ -285,10 +253,31 @@ export default function DisputeManagement() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    Status
+                  </label>
+                  <div className={`mt-2 inline-block rounded-full px-3 py-1 text-sm font-medium ${getStatusColor(selectedDispute.status)}`}>
+                    {selectedDispute.status}
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-widest text-slate-400">
                     Severity
                   </label>
-                  <p className="mt-2 text-lg font-semibold text-white">{selectedDispute.severity}</p>
+                  <div className={`mt-2 inline-block rounded-full px-3 py-1 text-sm font-medium ${getSeverityColor(selectedDispute.severity)}`}>
+                    {selectedDispute.severity}
+                  </div>
                 </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    Refund Amount
+                  </label>
+                  <p className="mt-2 text-lg font-semibold text-white">
+                    {formatKES(selectedDispute.refundAmount)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-widest text-slate-400">
                     Client
@@ -297,11 +286,9 @@ export default function DisputeManagement() {
                 </div>
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-widest text-slate-400">
-                    Refund Amount
+                    Cleaner
                   </label>
-                  <p className="mt-2 text-lg font-semibold text-white">
-                    KES {selectedDispute.refundAmount.toLocaleString()}
-                  </p>
+                  <p className="mt-2 text-lg font-semibold text-white">{selectedDispute.cleanerName || 'Not assigned'}</p>
                 </div>
               </div>
 
@@ -310,17 +297,6 @@ export default function DisputeManagement() {
                   Description
                 </label>
                 <p className="mt-2 text-slate-300">{selectedDispute.description}</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-semibold text-white">Resolution Notes</label>
-                <textarea
-                  value={resolutionNotes}
-                  onChange={(e) => setResolutionNotes(e.target.value)}
-                  rows={4}
-                  className="input mt-2 resize-none bg-white/5"
-                  placeholder="Add resolution notes..."
-                />
               </div>
 
               <div className="flex gap-3">
