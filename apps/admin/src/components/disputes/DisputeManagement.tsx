@@ -1,18 +1,35 @@
 'use client';
+// Mama Fua — Dispute Management Component
+// KhimTech | 2026
 
-import { useState } from 'react';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { format } from 'date-fns';
-import {
-  X,
-  CheckCircle2,
-  XCircle,
-  AlertTriangle,
-  Clock,
-  DollarSign,
-  MessageSquare,
+import { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { 
+  AlertTriangle, 
+  CheckCircle, 
+  XCircle, 
+  Clock, 
+  Users, 
+  DollarSign, 
+  MessageSquare, 
+  FileText, 
+  Search,
+  Filter,
+  RefreshCw,
+  Eye,
+  Download,
+  Calendar,
+  Info,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
+  Scale,
+  Gavel,
+  Shield,
+  AlertCircle,
+  X
 } from 'lucide-react';
+import { formatKES } from '@mama-fua/shared';
 
 interface Dispute {
   id: string;
