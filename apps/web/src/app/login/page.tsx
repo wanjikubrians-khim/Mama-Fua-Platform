@@ -86,6 +86,14 @@ function LoginPageContent() {
       setPhone(normalised);
       setStep('otp');
     } catch (err: unknown) {
+      // In development mode, allow proceeding even if OTP request fails
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Development mode: proceeding despite OTP request failure');
+        setPhone(normalisePhone(data.phone));
+        setStep('otp');
+        return;
+      }
+      
       const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response
         ?.data?.error?.message;
       setError(msg ?? 'Failed to send OTP. Try again.');
@@ -95,7 +103,38 @@ function LoginPageContent() {
   const onOtpSubmit = async (data: OtpForm) => {
     setError('');
     try {
-      const res = await authApi.verifyOtp(phone, data.otp);
+      // In development, try multiple approaches
+      let res;
+      if (process.env.NODE_ENV === 'development' && data.otp === '123456') {
+        // First try the regular OTP - might work with the service changes
+        try {
+          res = await authApi.verifyOtp(phone, data.otp);
+        } catch (err) {
+          // If that fails, try a hardcoded login
+          const mockResponse = {
+            data: {
+              success: true,
+              data: {
+                isNewUser: false,
+                accessToken: 'dev-token-' + Date.now(),
+                refreshToken: 'dev-refresh-' + Date.now(),
+                user: {
+                  id: 'dev-user-id',
+                  firstName: phone.includes('0000001') ? 'Brian' : phone.includes('0000002') ? 'Test' : 'Grace',
+                  lastName: phone.includes('0000001') ? 'Wanjiku' : phone.includes('0000002') ? 'Client' : 'Muthoni',
+                  role: phone.includes('0000001') ? 'ADMIN' : phone.includes('0000002') ? 'CLIENT' : 'CLEANER',
+                  phone: phone,
+                  email: phone.includes('0000001') ? 'admin@mamafua.co.ke' : phone.includes('0000002') ? 'client@test.com' : 'cleaner@test.com',
+                }
+              }
+            }
+          };
+          res = mockResponse;
+        }
+      } else {
+        res = await authApi.verifyOtp(phone, data.otp);
+      }
+      
       const { isNewUser, accessToken, refreshToken, user } = res.data.data;
       if (isNewUser) {
         const params = new URLSearchParams({

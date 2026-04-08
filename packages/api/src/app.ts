@@ -15,16 +15,17 @@ import { requestId } from './middleware/requestId';
 
 // ── Route imports ──────────────────────────────────────────────────────────
 import authRouter from './routes/auth.routes';
-import usersRouter from './routes/users.routes';
-import cleanersRouter from './routes/cleaners.routes';
 import bookingsRouter from './routes/bookings.routes';
-import paymentsRouter from './routes/payments.routes';
+import cleanersRouter from './routes/cleaners.routes';
+import devRouter from './routes/dev.routes';
 import locationRouter from './routes/location.routes';
-import reviewsRouter from './routes/reviews.routes';
 import notificationsRouter from './routes/notifications.routes';
-import adminRouter from './routes/admin.routes';
-import webhooksRouter from './routes/webhooks.routes';
+import paymentsRouter from './routes/payments.routes';
+import reviewsRouter from './routes/reviews.routes';
 import servicesRouter from './routes/services.routes';
+import usersRouter from './routes/users.routes';
+import webhooksRouter from './routes/webhooks.routes';
+import adminRouter from './routes/admin.routes';
 
 const app = express();
 
@@ -89,6 +90,7 @@ app.use(`${v1}/notifications`, notificationsRouter);
 app.use(`${v1}/admin`, adminRouter);
 app.use(`${v1}/webhooks`, webhooksRouter);
 app.use(`${v1}/services`, servicesRouter);
+app.use(`${v1}/dev`, devRouter);
 
 // ── 404 ───────────────────────────────────────────────────────────────────
 app.use((_req, res) => {

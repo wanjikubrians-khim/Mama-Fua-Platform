@@ -4,15 +4,15 @@
 
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { 
-  Users, 
-  CheckCircle, 
-  XCircle, 
-  AlertTriangle, 
-  FileImage, 
-  Camera, 
-  Eye, 
-  Download, 
+import {
+  Users,
+  CheckCircle,
+  XCircle,
+  AlertTriangle,
+  FileImage,
+  Camera,
+  Eye,
+  Download,
   Search,
   Filter,
   RefreshCw,
@@ -20,9 +20,10 @@ import {
   ShieldCheck,
   Ban,
   Info,
+  X,
   Loader2,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
 } from 'lucide-react';
 import { formatKES } from '@mama-fua/shared';
 
@@ -70,9 +71,13 @@ interface CleanerVerificationProps {
 
 export function CleanerVerification({ className = '' }: CleanerVerificationProps) {
   const queryClient = useQueryClient();
-  const [selectedApplication, setSelectedApplication] = useState<VerificationApplication | null>(null);
+  const [selectedApplication, setSelectedApplication] = useState<VerificationApplication | null>(
+    null
+  );
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED'>('all');
+  const [statusFilter, setStatusFilter] = useState<
+    'all' | 'PENDING' | 'UNDER_REVIEW' | 'VERIFIED' | 'REJECTED'
+  >('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [showRejectionModal, setShowRejectionModal] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -184,16 +189,17 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
 
       // Filter by status
       if (statusFilter !== 'all') {
-        filtered = filtered.filter(app => app.status === statusFilter);
+        filtered = filtered.filter((app) => app.status === statusFilter);
       }
 
       // Filter by search
       if (searchQuery) {
-        filtered = filtered.filter(app => 
-          app.cleaner.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          app.cleaner.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          app.cleaner.phone.includes(searchQuery) ||
-          app.idNumber.includes(searchQuery)
+        filtered = filtered.filter(
+          (app) =>
+            app.cleaner.firstName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            app.cleaner.lastName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            app.cleaner.phone.includes(searchQuery) ||
+            app.idNumber.includes(searchQuery)
         );
       }
 
@@ -209,7 +215,7 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
   const approveVerification = useMutation({
     mutationFn: async (applicationId: string) => {
       // Mock API call - replace with actual implementation
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       return { success: true };
     },
     onSuccess: () => {
@@ -221,7 +227,7 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
   const rejectVerification = useMutation({
     mutationFn: async ({ applicationId, reason }: { applicationId: string; reason: string }) => {
       // Mock API call - replace with actual implementation
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       return { success: true };
     },
     onSuccess: () => {
@@ -301,7 +307,7 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
           <h2 className="text-2xl font-bold text-ink-900">Cleaner Verification</h2>
           <p className="text-ink-600">Review and approve cleaner verification applications</p>
         </div>
-        
+
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
@@ -313,7 +319,7 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
               className="input pl-10 w-64"
             />
           </div>
-          
+
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
@@ -358,7 +364,7 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
                           </div>
                         )}
                       </div>
-                      
+
                       <div>
                         <h4 className="font-semibold text-ink-900">
                           {application.cleaner.firstName} {application.cleaner.lastName}
@@ -369,12 +375,16 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
                         </p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-3">
-                      <div className={`rounded-full px-3 py-1 text-xs font-medium ${getPriorityColor(application.priority)}`}>
+                      <div
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${getPriorityColor(application.priority)}`}
+                      >
                         {application.priority}
                       </div>
-                      <div className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(application.status)}`}>
+                      <div
+                        className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(application.status)}`}
+                      >
                         {application.status.replace('_', ' ')}
                       </div>
                       {application.blacklistCheck.isBlacklisted && (
@@ -395,10 +405,7 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
       {selectedApplication && (
         <div className="space-y-6">
           {/* Back Button */}
-          <button
-            onClick={() => setSelectedApplication(null)}
-            className="btn-ghost px-4 py-2"
-          >
+          <button onClick={() => setSelectedApplication(null)} className="btn-ghost px-4 py-2">
             <ChevronLeft className="mr-2 h-4 w-4" />
             Back to List
           </button>
@@ -408,7 +415,7 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
             {/* Cleaner Info */}
             <div className="rounded-xl border border-slate-200 bg-white p-6">
               <h3 className="text-lg font-semibold text-ink-900 mb-4">Cleaner Information</h3>
-              
+
               <div className="space-y-4">
                 <div className="flex items-center gap-4">
                   <div className="h-16 w-16 rounded-full bg-slate-200 overflow-hidden">
@@ -424,7 +431,7 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
                       </div>
                     )}
                   </div>
-                  
+
                   <div>
                     <h4 className="font-semibold text-ink-900">
                       {selectedApplication.cleaner.firstName} {selectedApplication.cleaner.lastName}
@@ -435,7 +442,7 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
                     )}
                   </div>
                 </div>
-                
+
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span className="text-sm text-ink-600">ID Number:</span>
@@ -449,7 +456,9 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-ink-600">Priority:</span>
-                    <div className={`rounded-full px-3 py-1 text-xs font-medium ${getPriorityColor(selectedApplication.priority)}`}>
+                    <div
+                      className={`rounded-full px-3 py-1 text-xs font-medium ${getPriorityColor(selectedApplication.priority)}`}
+                    >
                       {selectedApplication.priority}
                     </div>
                   </div>
@@ -460,15 +469,17 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
             {/* Verification Status */}
             <div className="rounded-xl border border-slate-200 bg-white p-6">
               <h3 className="text-lg font-semibold text-ink-900 mb-4">Verification Status</h3>
-              
+
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <span className="text-sm text-ink-600">Current Status:</span>
-                  <div className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(selectedApplication.status)}`}>
+                  <div
+                    className={`rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(selectedApplication.status)}`}
+                  >
                     {selectedApplication.status.replace('_', ' ')}
                   </div>
                 </div>
-                
+
                 {selectedApplication.reviewedAt && (
                   <div className="space-y-2">
                     <div className="flex justify-between">
@@ -479,17 +490,21 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
                     </div>
                     <div className="flex justify-between">
                       <span className="text-sm text-ink-600">Reviewed By:</span>
-                      <span className="font-medium text-ink-900">{selectedApplication.reviewedBy}</span>
+                      <span className="font-medium text-ink-900">
+                        {selectedApplication.reviewedBy}
+                      </span>
                     </div>
                   </div>
                 )}
 
                 {/* Blacklist Check */}
-                <div className={`rounded-lg p-4 ${
-                  selectedApplication.blacklistCheck.isBlacklisted 
-                    ? 'bg-red-50 border border-red-200' 
-                    : 'bg-green-50 border border-green-200'
-                }`}>
+                <div
+                  className={`rounded-lg p-4 ${
+                    selectedApplication.blacklistCheck.isBlacklisted
+                      ? 'bg-red-50 border border-red-200'
+                      : 'bg-green-50 border border-green-200'
+                  }`}
+                >
                   <div className="flex items-start gap-3">
                     {selectedApplication.blacklistCheck.isBlacklisted ? (
                       <Ban className="h-5 w-5 text-red-600 mt-0.5" />
@@ -498,13 +513,14 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
                     )}
                     <div>
                       <h4 className="font-semibold text-ink-900">Blacklist Check</h4>
-                      <p className={`text-sm ${
-                        selectedApplication.blacklistCheck.isBlacklisted ? 'text-red-700' : 'text-green-700'
-                      }`}>
-                        {selectedApplication.blacklistCheck.isBlacklisted 
-                          ? 'BLACKLISTED' 
-                          : 'Clear'
-                        }
+                      <p
+                        className={`text-sm ${
+                          selectedApplication.blacklistCheck.isBlacklisted
+                            ? 'text-red-700'
+                            : 'text-green-700'
+                        }`}
+                      >
+                        {selectedApplication.blacklistCheck.isBlacklisted ? 'BLACKLISTED' : 'Clear'}
                       </p>
                       {selectedApplication.blacklistCheck.reason && (
                         <p className="text-sm text-ink-600 mt-1">
@@ -522,24 +538,30 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span className="text-sm text-ink-600">Face Match:</span>
-                        <span className={`font-medium ${getQualityColor(selectedApplication.aiAnalysis.faceMatch)}`}>
+                        <span
+                          className={`font-medium ${getQualityColor(selectedApplication.aiAnalysis.faceMatch)}`}
+                        >
                           {selectedApplication.aiAnalysis.faceMatch}%
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm text-ink-600">ID Quality:</span>
-                        <span className={`font-medium ${getQualityColor(selectedApplication.aiAnalysis.idQuality)}`}>
+                        <span
+                          className={`font-medium ${getQualityColor(selectedApplication.aiAnalysis.idQuality)}`}
+                        >
                           {selectedApplication.aiAnalysis.idQuality}%
                         </span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-sm text-ink-600">Confidence:</span>
-                        <span className={`font-medium ${getQualityColor(selectedApplication.aiAnalysis.confidence)}`}>
+                        <span
+                          className={`font-medium ${getQualityColor(selectedApplication.aiAnalysis.confidence)}`}
+                        >
                           {selectedApplication.aiAnalysis.confidence}%
                         </span>
                       </div>
                     </div>
-                    
+
                     {selectedApplication.aiAnalysis.flags.length > 0 && (
                       <div className="rounded-lg bg-amber-50 p-3">
                         <h5 className="font-semibold text-amber-900 mb-2">Flags:</h5>
@@ -559,7 +581,7 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
           {/* Document Review */}
           <div className="rounded-xl border border-slate-200 bg-white p-6">
             <h3 className="text-lg font-semibold text-ink-900 mb-4">Document Review</h3>
-            
+
             <div className="grid gap-6 md:grid-cols-3">
               {/* ID Front */}
               <div>
@@ -626,11 +648,13 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
           {/* Actions */}
           <div className="rounded-xl border border-slate-200 bg-white p-6">
             <h3 className="text-lg font-semibold text-ink-900 mb-4">Actions</h3>
-            
+
             <div className="flex gap-3">
               <button
                 onClick={handleApprove}
-                disabled={approveVerification.isPending || selectedApplication.status === 'VERIFIED'}
+                disabled={
+                  approveVerification.isPending || selectedApplication.status === 'VERIFIED'
+                }
                 className="btn-primary px-6 py-3"
               >
                 {approveVerification.isPending ? (
@@ -645,7 +669,7 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
                   </>
                 )}
               </button>
-              
+
               <button
                 onClick={() => setShowRejectionModal(true)}
                 disabled={selectedApplication.status === 'REJECTED'}
@@ -662,7 +686,9 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
                   <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
                   <div className="text-sm text-red-700">
                     <p className="font-medium">Warning: This applicant is blacklisted</p>
-                    <p>Previous accounts show fraudulent activity. Immediate rejection recommended.</p>
+                    <p>
+                      Previous accounts show fraudulent activity. Immediate rejection recommended.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -677,17 +703,16 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
           <div className="rounded-xl bg-white p-6 m-4 max-w-md w-full">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-semibold text-ink-900">Reject Application</h3>
-              <button
-                onClick={() => setShowRejectionModal(false)}
-                className="btn-ghost p-2"
-              >
+              <button onClick={() => setShowRejectionModal(false)} className="btn-ghost p-2">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="mb-2 block text-sm font-medium text-ink-700">Rejection Reason</label>
+                <label className="mb-2 block text-sm font-medium text-ink-700">
+                  Rejection Reason
+                </label>
                 <select
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
@@ -705,7 +730,9 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
               </div>
 
               <div>
-                <label className="mb-2 block text-sm font-medium text-ink-700">Additional Notes (Optional)</label>
+                <label className="mb-2 block text-sm font-medium text-ink-700">
+                  Additional Notes (Optional)
+                </label>
                 <textarea
                   className="input resize-none"
                   rows={3}
@@ -715,13 +742,10 @@ export function CleanerVerification({ className = '' }: CleanerVerificationProps
             </div>
 
             <div className="flex gap-3 mt-6">
-              <button
-                onClick={() => setShowRejectionModal(false)}
-                className="btn-ghost px-6 py-3"
-              >
+              <button onClick={() => setShowRejectionModal(false)} className="btn-ghost px-6 py-3">
                 Cancel
               </button>
-              
+
               <button
                 onClick={handleReject}
                 disabled={!rejectionReason || rejectVerification.isPending}

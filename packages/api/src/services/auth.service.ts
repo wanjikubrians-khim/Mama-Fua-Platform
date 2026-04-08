@@ -49,14 +49,28 @@ export async function verifyOtp(
 ): Promise<{ isNewUser: boolean } & Partial<TokenPair & { user: object }>> {
   const phone = normalisePhone(rawPhone);
 
-  const locked = await redis.get(RedisKeys.otpLock(phone));
-  if (locked) throw new AppError(ERROR_CODES.OTP_MAX_ATTEMPTS, 'Account locked. Try again later.', 429);
+  logger.info(`[DEBUG] NODE_ENV: ${process.env.NODE_ENV}, OTP: ${code}`);
+  
+  // Development bypass - accept any 6-digit code or the dev code
+  if (process.env.NODE_ENV === 'development') {
+    if (code === '123456' || code === OTP.DEV_CODE) {
+      logger.info(`[DEV] Bypassing OTP verification for ${phone}`);
+      // Clean up any existing OTP data
+      await redis.del(RedisKeys.otp(phone));
+      await redis.del(RedisKeys.otpAttempts(phone));
+      await redis.del(RedisKeys.otpLock(phone));
+    } else {
+      throw new AppError(ERROR_CODES.OTP_INVALID, 'Invalid OTP. Use 123456 in development mode.', 400);
+    }
+  } else {
+    const locked = await redis.get(RedisKeys.otpLock(phone));
+    if (locked) throw new AppError(ERROR_CODES.OTP_MAX_ATTEMPTS, 'Account locked. Try again later.', 429);
 
-  const codeHash = await redis.get(RedisKeys.otp(phone));
-  if (!codeHash) throw new AppError(ERROR_CODES.OTP_EXPIRED, 'OTP has expired', 400);
+    const codeHash = await redis.get(RedisKeys.otp(phone));
+    if (!codeHash) throw new AppError(ERROR_CODES.OTP_EXPIRED, 'OTP has expired', 400);
 
-  const valid = await bcrypt.compare(code, codeHash);
-  if (!valid) {
+    const valid = await bcrypt.compare(code, codeHash);
+    if (!valid) {
     const attempts = await redis.incr(RedisKeys.otpAttempts(phone));
     if (attempts >= OTP.MAX_ATTEMPTS) {
       await redis.setex(RedisKeys.otpLock(phone), TTL.OTP_LOCK, '1');
@@ -66,8 +80,9 @@ export async function verifyOtp(
     throw new AppError(ERROR_CODES.OTP_INVALID, `Invalid OTP. ${OTP.MAX_ATTEMPTS - attempts} attempts remaining.`, 400);
   }
 
-  await redis.del(RedisKeys.otp(phone));
-  await redis.del(RedisKeys.otpAttempts(phone));
+    await redis.del(RedisKeys.otp(phone));
+    await redis.del(RedisKeys.otpAttempts(phone));
+  }
 
   // Check if user exists
   const existing = await prisma.user.findUnique({ where: { phone } });

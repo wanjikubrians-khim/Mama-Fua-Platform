@@ -78,6 +78,7 @@ function mockResponse<T>(data: T): Promise<AxiosResponse<{ success: true; data: 
 export const authApi = {
   requestOtp: (phone: string) => api.post('/auth/request-otp', { phone }),
   verifyOtp: (phone: string, otp: string) => api.post('/auth/verify-otp', { phone, otp }),
+  devLogin: (phone: string) => api.post('/dev/dev-login', { phone }),
   register: (data: object) => api.post('/auth/register', data),
   refresh: (refreshToken: string) => api.post('/auth/refresh', { refreshToken }),
   logout: (refreshToken: string) => api.post('/auth/logout', { refreshToken }),

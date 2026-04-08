@@ -9,6 +9,7 @@
   --admin-bg-soft: #10203a;
   --admin-surface: rgba(12, 23, 41, 0.78);
   --admin-surface-strong: rgba(7, 17, 31, 0.92);
+  --admin-surface-muted: rgba(255, 255, 255, 0.04);
   --admin-border: rgba(157, 182, 217, 0.18);
   --admin-border-strong: rgba(157, 182, 217, 0.32);
   --admin-text: #e6eefc;
@@ -99,6 +100,19 @@
     @apply relative min-h-screen;
   }
 
+  .admin-shell::after {
+    content: '';
+    position: fixed;
+    inset: auto -12% -22% auto;
+    width: 420px;
+    height: 420px;
+    border-radius: 999px;
+    pointer-events: none;
+    z-index: -1;
+    background: radial-gradient(circle, rgba(94, 192, 221, 0.16), transparent 68%);
+    filter: blur(8px);
+  }
+
   .admin-glass {
     background: var(--admin-surface);
     border: 1px solid var(--admin-border);
@@ -115,6 +129,24 @@
     border: 1px solid var(--admin-border-strong);
     box-shadow: var(--admin-shadow);
     backdrop-filter: blur(24px);
+  }
+
+  .admin-command-surface {
+    background:
+      linear-gradient(140deg, rgba(10, 24, 43, 0.96), rgba(4, 11, 22, 0.9)),
+      radial-gradient(circle at top left, rgba(94, 192, 221, 0.12), transparent 32%);
+    border: 1px solid rgba(157, 182, 217, 0.22);
+    box-shadow: 0 32px 90px -40px rgba(0, 0, 0, 0.92);
+    border-radius: 32px;
+    backdrop-filter: blur(26px);
+  }
+
+  .admin-kpi-tile {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03));
+    border: 1px solid rgba(157, 182, 217, 0.16);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    border-radius: 26px;
+    padding: 1.25rem;
   }
 
   .admin-badge {
