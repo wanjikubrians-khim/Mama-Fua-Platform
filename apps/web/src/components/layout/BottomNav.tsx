@@ -1,7 +1,6 @@
 'use client';
-// Mama Fua — Bottom Navigation (mobile web)
+// Mama Fua — Bottom Navigation (mobile)
 // KhimTech | 2026
-// Place in: apps/web/src/components/layout/BottomNav.tsx
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -12,69 +11,71 @@ import { userApi } from '@/lib/api';
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const user = useAuthStore((s) => s.user);
+  const user     = useAuthStore((s) => s.user);
 
   const { data: notifRes } = useQuery({
     queryKey: ['notifications'],
     queryFn: () => userApi.notifications(),
     enabled: !!user,
-    refetchInterval: 30000,
+    refetchInterval: 30_000,
   });
 
-  // Only show on authenticated pages, not landing/auth
   const hiddenPaths = ['/', '/login', '/register'];
   if (!user || hiddenPaths.includes(pathname)) return null;
 
   const unreadCount = (notifRes?.data?.data ?? []).filter(
-    (notification: { isRead: boolean }) => !notification.isRead
+    (n: { isRead: boolean }) => !n.isRead
   ).length;
 
-  const isClient = user.role === 'CLIENT';
   const isCleaner = user.role === 'CLEANER';
 
   const clientLinks = [
-    { href: '/dashboard', icon: Home, label: 'Home' },
-    { href: '/bookings', icon: Calendar, label: 'Bookings' },
-    { href: '/notifications', icon: Bell, label: 'Alerts' },
-    { href: '/profile', icon: User, label: 'Profile' },
+    { href: '/dashboard',      icon: Home,     label: 'Home' },
+    { href: '/bookings',       icon: Calendar, label: 'Bookings' },
+    { href: '/notifications',  icon: Bell,     label: 'Alerts',  badge: unreadCount },
+    { href: '/profile',        icon: User,     label: 'Profile' },
   ];
 
   const cleanerLinks = [
-    { href: '/cleaner/dashboard', icon: Home, label: 'Home' },
-    { href: '/bookings', icon: Calendar, label: 'Jobs' },
-    { href: '/cleaner/wallet', icon: Wallet, label: 'Wallet' },
-    { href: '/notifications', icon: Bell, label: 'Alerts' },
+    { href: '/cleaner/dashboard', icon: Home,     label: 'Home' },
+    { href: '/bookings',          icon: Calendar, label: 'Jobs' },
+    { href: '/cleaner/wallet',    icon: Wallet,   label: 'Wallet' },
+    { href: '/notifications',     icon: Bell,     label: 'Alerts', badge: unreadCount },
   ];
 
   const links = isCleaner ? cleanerLinks : clientLinks;
 
   return (
-    <nav className="fixed bottom-0 inset-x-0 z-20 sm:hidden bg-white/95 backdrop-blur-md border-t border-gray-100 safe-area-inset-bottom">
-      <div className="flex items-center justify-around px-2 py-2">
-        {links.map(({ href, icon: Icon, label }) => {
-          const active = pathname === href || pathname.startsWith(href + '/');
+    <nav className="fixed inset-x-0 bottom-0 z-40 sm:hidden bg-white/98 backdrop-blur-xl border-t border-ink-100">
+      {/* iOS safe area */}
+      <div className="flex items-center justify-around px-2 pb-safe pt-1">
+        {links.map(({ href, icon: Icon, label, badge }) => {
+          const active = pathname === href || (href !== '/dashboard' && href !== '/cleaner/dashboard' && pathname.startsWith(href + '/'));
           return (
             <Link
               key={href}
               href={href}
-              className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-colors min-w-0 ${
-                active ? 'text-brand-600' : 'text-gray-400 hover:text-gray-600'
+              className={`relative flex flex-col items-center gap-1 px-4 py-2 rounded-xl transition-all duration-200 min-w-0 ${
+                active ? 'text-brand-600' : 'text-ink-400 hover:text-ink-700'
               }`}
             >
-              <span className="relative">
-                <Icon className={`h-5 w-5 flex-shrink-0 ${active ? 'stroke-[2.5px]' : ''}`} />
-                {href === '/notifications' && unreadCount > 0 && (
-                  <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+              {/* Active dot indicator */}
+              {active && (
+                <span className="absolute -top-px left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-brand-600" />
+              )}
+
+              <span className={`relative flex h-6 w-6 items-center justify-center transition-transform duration-200 ${active ? 'scale-110' : ''}`}>
+                <Icon className={`h-5 w-5 ${active ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                {badge != null && badge > 0 && (
+                  <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-extrabold text-white ring-2 ring-white">
+                    {badge > 9 ? '9+' : badge}
+                  </span>
                 )}
               </span>
-              <span
-                className={`text-[10px] font-semibold tracking-wide truncate ${active ? 'text-brand-600' : ''}`}
-              >
+
+              <span className={`text-[10px] font-semibold tracking-wide ${active ? 'text-brand-600' : ''}`}>
                 {label}
               </span>
-              {active && (
-                <span className="absolute -top-px left-1/2 -translate-x-1/2 h-0.5 w-8 rounded-full bg-brand-600" />
-              )}
             </Link>
           );
         })}

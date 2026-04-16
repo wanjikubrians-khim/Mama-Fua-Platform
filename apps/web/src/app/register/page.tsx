@@ -8,89 +8,63 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2, Phone, User, Mail, ShieldCheck, Sparkles, MapPin } from 'lucide-react';
+import { Loader2, Phone, User, Mail, ArrowRight, ChevronLeft } from 'lucide-react';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
 import { normalisePhone } from '@mama-fua/shared';
 
 const registerSchema = z.object({
-  firstName: z.string().min(2, 'First name must be at least 2 characters'),
-  lastName: z.string().min(2, 'Last name must be at least 2 characters'),
-  email: z.string().email('Enter a valid email').optional().or(z.literal('')),
-  phone: z.string().min(9, 'Enter a valid phone number'),
-  otp: z.string().length(6, 'Enter the 6-digit code'),
-  role: z.enum(['CLIENT', 'CLEANER']),
+  firstName: z.string().min(2, 'At least 2 characters'),
+  lastName:  z.string().min(2, 'At least 2 characters'),
+  email:     z.string().email('Enter a valid email').optional().or(z.literal('')),
+  phone:     z.string().min(9, 'Enter a valid phone number'),
+  otp:       z.string().length(6, 'Enter the 6-digit code'),
+  role:      z.enum(['CLIENT', 'CLEANER']),
 });
 
 type RegisterForm = z.infer<typeof registerSchema>;
 
-const highlights = [
-  {
-    icon: ShieldCheck,
-    title: 'Verified profiles',
-    body: 'All cleaners go through background checks and ID verification.',
-  },
-  {
-    icon: Sparkles,
-    title: 'Flexible work',
-    body: 'Set your own schedule and service areas. Work when you want.',
-  },
-  {
-    icon: MapPin,
-    title: 'Local focus',
-    body: 'Connect with clients in your neighborhood for efficient jobs.',
-  },
-];
-
 function getSafeNextPath(value: string | null) {
-  if (!value || !value.startsWith('/') || value.startsWith('//')) {
-    return null;
-  }
-
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return null;
   return value;
 }
 
 export default function RegisterPage() {
   return (
-    <Suspense fallback={<RegisterPageFallback />}>
-      <RegisterPageContent />
+    <Suspense fallback={<RegisterSkeleton />}>
+      <RegisterContent />
     </Suspense>
   );
 }
 
-function RegisterPageContent() {
-  const router = useRouter();
+function RegisterContent() {
+  const router       = useRouter();
   const searchParams = useSearchParams();
-  const setAuth = useAuthStore((s) => s.setAuth);
+  const setAuth      = useAuthStore((s) => s.setAuth);
 
-  const [step, setStep] = useState<'details' | 'otp'>('details');
-  const [phone, setPhone] = useState('');
-  const [error, setError] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
+  const [step, setStep]     = useState<'details' | 'otp'>('details');
+  const [phone, setPhone]   = useState('');
+  const [error, setError]   = useState('');
   const nextPath = getSafeNextPath(searchParams.get('next'));
 
   const form = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
     defaultValues: {
-      role: (searchParams.get('role') as 'CLIENT' | 'CLEANER') || 'CLIENT',
+      role:  (searchParams.get('role') as 'CLIENT' | 'CLEANER') || 'CLIENT',
       phone: searchParams.get('phone') || '',
-      otp: searchParams.get('otp') || '',
+      otp:   searchParams.get('otp')   || '',
     },
   });
 
-  const selectedRole = form.watch('role');
-  const isClientSignup = selectedRole === 'CLIENT';
+  const selectedRole   = form.watch('role');
+  const isClient       = selectedRole === 'CLIENT';
+
   const signInParams = new URLSearchParams({ role: selectedRole });
-
-  if (nextPath) {
-    signInParams.set('next', nextPath);
-  }
-
+  if (nextPath) signInParams.set('next', nextPath);
   const signInHref = `/login?${signInParams.toString()}`;
 
-  // If OTP is provided in URL, skip to OTP step
   useEffect(() => {
-    const urlOtp = searchParams.get('otp');
+    const urlOtp   = searchParams.get('otp');
     const urlPhone = searchParams.get('phone');
     if (urlOtp && urlPhone) {
       setPhone(urlPhone);
@@ -106,11 +80,10 @@ function RegisterPageContent() {
       const normalised = normalisePhone(data.phone);
       await authApi.requestOtp(normalised);
       setPhone(normalised);
-      setOtpSent(true);
       setStep('otp');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response
-        ?.data?.error?.message;
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message;
       setError(msg ?? 'Failed to send OTP. Try again.');
     }
   };
@@ -122,305 +95,271 @@ function RegisterPageContent() {
         phone: data.phone,
         otp: data.otp,
         firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email || undefined,
-        role: data.role,
+        lastName:  data.lastName,
+        email:     data.email || undefined,
+        role:      data.role,
         preferredLang: 'en',
       });
       const { accessToken, refreshToken, user } = res.data.data;
       setAuth(user, accessToken, refreshToken);
       router.push(nextPath ?? (data.role === 'CLEANER' ? '/cleaner/dashboard' : '/dashboard'));
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error?: { message?: string } } } })?.response
-        ?.data?.error?.message;
+      const msg = (err as { response?: { data?: { error?: { message?: string } } } })
+        ?.response?.data?.error?.message;
       setError(msg ?? 'Registration failed. Try again.');
     }
   };
 
   return (
-    <div className="min-h-screen px-4 py-8 sm:px-6">
-      <div className="mx-auto grid max-w-5xl gap-6 lg:min-h-[calc(100vh-4rem)] lg:grid-cols-[0.88fr_1.12fr]">
-        <aside className="dark-panel hidden flex-col justify-between px-8 py-8 lg:flex">
-          <div>
-            <Link href="/" className="inline-flex items-center gap-3">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-sm font-bold text-ink-900">
-                MF
-              </span>
-              <span className="text-sm font-semibold text-white">Mama Fua</span>
-            </Link>
+    <div className="flex min-h-screen bg-surface-50">
 
-            <p className="mt-10 text-sm font-medium text-brand-100">Join our community</p>
-            <h1 className="mt-3 max-w-md text-4xl text-white">
-              {isClientSignup
-                ? 'Create a client account and finish your booking faster'
-                : 'Start your journey as a trusted cleaner'}
+      {/* ── Left dark panel ────────────────────────────────────── */}
+      <div className="relative hidden w-[420px] flex-shrink-0 overflow-hidden bg-ink-900 px-10 py-10 lg:flex lg:flex-col lg:justify-between">
+        <div
+          className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage: 'radial-gradient(circle, rgb(148 163 184 / 0.3) 1px, transparent 1px)',
+            backgroundSize: '24px 24px',
+          }}
+        />
+        <div className="absolute -top-32 -right-32 h-96 w-96 rounded-full bg-brand-600/20 blur-3xl" />
+        <div className="absolute -bottom-32 -left-32 h-96 w-96 rounded-full bg-mint-600/10 blur-3xl" />
+
+        {/* Logo */}
+        <div className="relative z-10">
+          <Link href="/" className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-sm font-extrabold text-white shadow-brand">
+              MF
+            </span>
+            <div>
+              <p className="text-sm font-bold text-white leading-none">Mama Fua</p>
+              <p className="text-[10px] text-white/40 mt-0.5 uppercase tracking-widest">KhimTech</p>
+            </div>
+          </Link>
+
+          <div className="mt-14">
+            <p className="text-xs font-semibold uppercase tracking-widest text-brand-400">
+              {isClient ? 'Book a cleaner' : 'Join as a cleaner'}
+            </p>
+            <h1 className="mt-3 text-4xl font-extrabold leading-tight text-white">
+              {isClient
+                ? 'Create an account and get your home cleaned today.'
+                : 'Start earning with a steady stream of local clients.'}
             </h1>
-            <p className="mt-4 max-w-md text-sm leading-7 text-white/70">
-              {isClientSignup
-                ? 'Save your addresses, keep job updates in one place, and pay securely when your booking is ready.'
-                : 'Create your profile, set your rates, and start earning. Our platform handles payments, reviews, and connects you with local clients.'}
+            <p className="mt-4 text-sm leading-relaxed text-white/50">
+              {isClient
+                ? 'Save addresses, track bookings, and pay securely with M-Pesa or card.'
+                : 'Build your digital profile, set your rates, and get paid automatically.'}
             </p>
           </div>
+        </div>
 
-          <div className="grid gap-4">
-            {highlights.map((item) => (
-              <div
-                key={item.title}
-                className="rounded-xl border border-white/10 bg-white/5 px-5 py-5"
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10">
-                  <item.icon className="h-5 w-5 text-brand-100" />
-                </div>
-                <h2 className="mt-4 text-xl text-white">{item.title}</h2>
-                <p className="mt-2 text-sm leading-7 text-white/68">{item.body}</p>
+        {/* Feature list */}
+        <div className="relative z-10 space-y-3">
+          {(isClient
+            ? [
+                { icon: '🏠', title: 'Verified cleaners only',  body: 'Every cleaner is background-checked before joining.' },
+                { icon: '🔒', title: 'Escrow payments',         body: 'Your money is held until the job is confirmed complete.' },
+                { icon: '📍', title: 'Real-time tracking',      body: 'Follow your cleaner en route right on the map.' },
+              ]
+            : [
+                { icon: '💳', title: 'M-Pesa payouts',          body: 'Earnings hit your M-Pesa within an hour.' },
+                { icon: '⭐', title: 'Build your reputation',   body: 'Ratings help you earn more over time.' },
+                { icon: '📅', title: 'You control your hours',  body: 'Set your own schedule and service area.' },
+              ]
+          ).map((f) => (
+            <div key={f.title} className="flex items-start gap-3 rounded-2xl bg-white/5 border border-white/8 px-4 py-4">
+              <span className="text-xl flex-shrink-0">{f.icon}</span>
+              <div>
+                <p className="text-sm font-bold text-white">{f.title}</p>
+                <p className="mt-0.5 text-xs text-white/50">{f.body}</p>
               </div>
-            ))}
-          </div>
-        </aside>
+            </div>
+          ))}
+        </div>
+      </div>
 
-        <section className="section-shell flex items-center justify-center px-5 py-8 sm:px-8">
-          <div className="w-full max-w-md space-y-8">
-            <div>
-              <Link href="/" className="inline-flex items-center gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-600 text-sm font-bold text-white">
-                  MF
-                </span>
-                <span className="text-sm font-semibold text-ink-900">Mama Fua</span>
-              </Link>
-              <p className="mt-5 text-sm font-medium text-brand-700">Create your account</p>
-              <p className="mt-2 text-sm leading-7 text-ink-500">
-                {isClientSignup
-                  ? 'Join as a client to book trusted cleaners and track every step in one place.'
-                  : 'Join as a cleaner and start building your profile.'}
+      {/* ── Right form panel ───────────────────────────────────── */}
+      <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:px-8">
+        <div className="w-full max-w-md">
+
+          {/* Mobile logo */}
+          <Link href="/" className="mb-8 flex items-center gap-2.5 lg:hidden">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-sm font-extrabold text-white shadow-brand">MF</span>
+            <span className="text-sm font-bold text-ink-900">Mama Fua</span>
+          </Link>
+
+          {step === 'details' ? (
+            <div className="animate-fade-in">
+              <h2 className="text-2xl font-extrabold text-ink-900 sm:text-3xl">
+                Create your account
+              </h2>
+              <p className="mt-2 text-sm text-ink-500">
+                {isClient ? 'Sign up to book trusted cleaners.' : 'Sign up to offer cleaning services.'}
               </p>
-            </div>
 
-            <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-soft sm:p-8">
-              {step === 'details' ? (
-                <form onSubmit={form.handleSubmit(onDetailsSubmit)} className="space-y-6">
-                  <div>
-                    <h2 className="text-3xl">
-                      {isClientSignup ? 'Sign up to book a cleaner' : 'Sign up as a cleaner'}
-                    </h2>
-                    <p className="mt-2 text-sm text-ink-500">
-                      {isClientSignup
-                        ? 'We&apos;ll verify your phone number before creating your client account.'
-                        : 'We&apos;ll send a code to verify your phone.'}
-                    </p>
-                  </div>
+              <form onSubmit={form.handleSubmit(onDetailsSubmit)} className="mt-8 space-y-5">
 
-                  {/* Role selector */}
-                  <div className="space-y-3">
-                    <label className="text-sm font-medium text-ink-700">I want to:</label>
-                    <div className="grid grid-cols-2 gap-3">
+                {/* Role selector */}
+                <div>
+                  <p className="label">I want to</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    {([
+                      { role: 'CLIENT',  emoji: '🏠', label: 'Book a cleaner', sub: 'Find help for my home' },
+                      { role: 'CLEANER', emoji: '🧹', label: 'Be a cleaner',   sub: 'Offer my services' },
+                    ] as const).map(({ role, emoji, label, sub }) => (
                       <button
+                        key={role}
                         type="button"
-                        onClick={() => form.setValue('role', 'CLIENT')}
-                        className={`rounded-xl border p-4 text-left transition-colors ${
-                          form.watch('role') === 'CLIENT'
-                            ? 'border-brand-600 bg-brand-50'
-                            : 'border-slate-200 bg-white hover:border-slate-300'
-                        }`}
+                        onClick={() => form.setValue('role', role)}
+                        className={`select-card text-left ${selectedRole === role ? 'select-card-active' : ''}`}
                       >
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">🏠</span>
-                          <div>
-                            <p className="font-medium text-ink-900">Book a cleaner</p>
-                            <p className="text-xs text-ink-500">Find help for my home</p>
-                          </div>
-                        </div>
+                        <span className="text-2xl">{emoji}</span>
+                        <p className="mt-3 text-sm font-bold text-ink-900">{label}</p>
+                        <p className="text-xs text-ink-400">{sub}</p>
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => form.setValue('role', 'CLEANER')}
-                        className={`rounded-xl border p-4 text-left transition-colors ${
-                          form.watch('role') === 'CLEANER'
-                            ? 'border-brand-600 bg-brand-50'
-                            : 'border-slate-200 bg-white hover:border-slate-300'
-                        }`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <span className="text-2xl">🧹</span>
-                          <div>
-                            <p className="font-medium text-ink-900">Be a cleaner</p>
-                            <p className="text-xs text-ink-500">Offer cleaning services</p>
-                          </div>
-                        </div>
-                      </button>
-                    </div>
+                    ))}
                   </div>
+                </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-ink-700">
-                        First name
-                      </label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-                        <input
-                          {...form.register('firstName')}
-                          className="input pl-10"
-                          placeholder="Grace"
-                        />
-                      </div>
-                      {form.formState.errors.firstName && (
-                        <p className="mt-1 text-xs text-red-500">
-                          {form.formState.errors.firstName.message}
-                        </p>
-                      )}
-                    </div>
-                    <div>
-                      <label className="mb-2 block text-sm font-medium text-ink-700">
-                        Last name
-                      </label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-                        <input
-                          {...form.register('lastName')}
-                          className="input pl-10"
-                          placeholder="Muthoni"
-                        />
-                      </div>
-                      {form.formState.errors.lastName && (
-                        <p className="mt-1 text-xs text-red-500">
-                          {form.formState.errors.lastName.message}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-ink-700">
-                      Email (optional)
-                    </label>
+                {/* Name row */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="field-group mb-0">
+                    <label className="label">First name</label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-                      <input
-                        {...form.register('email')}
-                        className="input pl-10"
-                        placeholder="grace@email.com"
-                        type="email"
-                      />
+                      <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+                      <input {...form.register('firstName')} className={`input pl-10 ${form.formState.errors.firstName ? 'input-error' : ''}`} placeholder="Grace" />
                     </div>
-                    {form.formState.errors.email && (
-                      <p className="mt-1 text-xs text-red-500">
-                        {form.formState.errors.email.message}
-                      </p>
+                    {form.formState.errors.firstName && (
+                      <p className="mt-1 text-xs text-red-500">{form.formState.errors.firstName.message}</p>
                     )}
                   </div>
-
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-ink-700">
-                      Phone number
-                    </label>
+                  <div className="field-group mb-0">
+                    <label className="label">Last name</label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
-                      <input
-                        {...form.register('phone')}
-                        className="input pl-11"
-                        placeholder="+254 712 345 678"
-                        type="tel"
-                      />
+                      <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+                      <input {...form.register('lastName')} className={`input pl-10 ${form.formState.errors.lastName ? 'input-error' : ''}`} placeholder="Muthoni" />
                     </div>
-                    {form.formState.errors.phone && (
-                      <p className="mt-1 text-xs text-red-500">
-                        {form.formState.errors.phone.message}
-                      </p>
+                    {form.formState.errors.lastName && (
+                      <p className="mt-1 text-xs text-red-500">{form.formState.errors.lastName.message}</p>
                     )}
                   </div>
+                </div>
 
-                  {error && (
-                    <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-                      {error}
-                    </p>
-                  )}
-
-                  <button
-                    type="submit"
-                    disabled={form.formState.isSubmitting}
-                    className="btn-primary w-full py-3.5 text-base"
-                  >
-                    {form.formState.isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Send verification code
-                  </button>
-
-                  <p className="text-center text-sm text-ink-500">
-                    Already have an account?{' '}
-                    <Link href={signInHref} className="font-semibold text-brand-700 hover:underline">
-                      Sign in
-                    </Link>
-                  </p>
-                </form>
-              ) : (
-                <form onSubmit={form.handleSubmit(onOtpSubmit)} className="space-y-6">
-                  <div>
-                    <h2 className="text-3xl">Enter your code</h2>
-                    <p className="mt-2 text-sm text-ink-500">
-                      Sent to <span className="font-semibold text-ink-800">{phone}</span>
-                    </p>
+                {/* Email */}
+                <div className="field-group mb-0">
+                  <label className="label">Email <span className="label-optional">(optional)</span></label>
+                  <div className="relative">
+                    <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+                    <input {...form.register('email')} className="input pl-10" placeholder="grace@email.com" type="email" />
                   </div>
+                </div>
 
-                  <div>
-                    <label className="mb-2 block text-sm font-medium text-ink-700">
-                      6-digit code
-                    </label>
-                    <input
-                      {...form.register('otp')}
-                      className="input text-center font-mono text-2xl tracking-[0.45em]"
-                      placeholder="000000"
-                      maxLength={6}
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      autoFocus
-                    />
-                    {form.formState.errors.otp && (
-                      <p className="mt-1 text-xs text-red-500">
-                        {form.formState.errors.otp.message}
-                      </p>
-                    )}
+                {/* Phone */}
+                <div className="field-group mb-0">
+                  <label className="label">Phone number</label>
+                  <div className="relative">
+                    <Phone className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-400" />
+                    <input {...form.register('phone')} className={`input pl-10 ${form.formState.errors.phone ? 'input-error' : ''}`} placeholder="+254 712 345 678" type="tel" />
                   </div>
-
-                  {error && (
-                    <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-                      {error}
-                    </p>
+                  {form.formState.errors.phone && (
+                    <p className="mt-1 text-xs text-red-500">{form.formState.errors.phone.message}</p>
                   )}
+                </div>
 
-                  <button
-                    type="submit"
-                    disabled={form.formState.isSubmitting}
-                    className="btn-primary w-full py-3.5 text-base"
-                  >
-                    {form.formState.isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Create account
-                  </button>
+                {error && (
+                  <div className="callout-danger">
+                    <span>⚠️</span><span>{error}</span>
+                  </div>
+                )}
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep('details');
-                      setError('');
-                    }}
-                    className="btn-ghost w-full"
-                  >
-                    Change details
-                  </button>
-                </form>
-              )}
+                <button type="submit" disabled={form.formState.isSubmitting} className="btn-primary w-full py-3.5 text-base rounded-2xl">
+                  {form.formState.isSubmitting
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <>Send verification code <ArrowRight className="h-4 w-4" /></>
+                  }
+                </button>
+
+                <p className="text-center text-xs text-ink-400">
+                  Already have an account?{' '}
+                  <Link href={signInHref} className="font-semibold text-brand-600 hover:text-brand-700">Sign in</Link>
+                </p>
+              </form>
             </div>
-          </div>
-        </section>
+          ) : (
+            <div className="animate-fade-in">
+              <button
+                onClick={() => { setStep('details'); setError(''); }}
+                className="mb-6 flex items-center gap-1.5 text-sm font-semibold text-ink-500 hover:text-ink-900 transition-colors"
+              >
+                <ChevronLeft className="h-4 w-4" /> Back
+              </button>
+
+              <h2 className="text-2xl font-extrabold text-ink-900 sm:text-3xl">
+                Verify your number
+              </h2>
+              <p className="mt-2 text-sm text-ink-500">
+                We sent a code to{' '}
+                <span className="font-bold text-ink-800">{phone}</span>
+              </p>
+
+              <form onSubmit={form.handleSubmit(onOtpSubmit)} className="mt-8 space-y-5">
+                <div className="field-group mb-0">
+                  <label className="label">6-digit code</label>
+                  <input
+                    {...form.register('otp')}
+                    className={`input text-center font-mono text-3xl tracking-[0.5em] py-4 ${form.formState.errors.otp ? 'input-error' : ''}`}
+                    placeholder="000000"
+                    maxLength={6}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    autoFocus
+                  />
+                  {form.formState.errors.otp && (
+                    <p className="mt-1 text-xs text-red-500">{form.formState.errors.otp.message}</p>
+                  )}
+                </div>
+
+                {error && (
+                  <div className="callout-danger">
+                    <span>⚠️</span><span>{error}</span>
+                  </div>
+                )}
+
+                <button type="submit" disabled={form.formState.isSubmitting} className="btn-primary w-full py-3.5 text-base rounded-2xl">
+                  {form.formState.isSubmitting
+                    ? <Loader2 className="h-4 w-4 animate-spin" />
+                    : <>Create account <ArrowRight className="h-4 w-4" /></>
+                  }
+                </button>
+
+                <p className="text-center text-xs text-ink-400">
+                  Didn&apos;t get a code?{' '}
+                  <button type="button" onClick={() => { setStep('details'); setError(''); }} className="font-semibold text-brand-600 hover:text-brand-700">
+                    Try again
+                  </button>
+                </p>
+              </form>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
-function RegisterPageFallback() {
+function RegisterSkeleton() {
   return (
-    <div className="flex min-h-screen items-center justify-center px-4 py-8">
-      <div className="rounded-2xl border border-slate-200 bg-white px-8 py-8 text-center shadow-card">
-        <Loader2 className="mx-auto h-6 w-6 animate-spin text-brand-700" />
-        <p className="mt-4 text-sm text-ink-500">Loading registration...</p>
+    <div className="flex min-h-screen bg-surface-50">
+      <div className="hidden w-[420px] bg-ink-900 lg:block" />
+      <div className="flex flex-1 items-center justify-center px-8 py-12">
+        <div className="w-full max-w-md space-y-5">
+          <div className="skeleton h-8 w-56 rounded-xl" />
+          <div className="skeleton h-4 w-72 rounded-lg" />
+          <div className="skeleton h-24 w-full rounded-2xl" />
+          <div className="skeleton h-12 w-full rounded-2xl" />
+          <div className="skeleton h-14 w-full rounded-2xl" />
+        </div>
       </div>
     </div>
   );

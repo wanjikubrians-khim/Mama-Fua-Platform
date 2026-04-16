@@ -28,7 +28,7 @@ import TrackingPanel from '@/components/booking/TrackingPanel';
 const STATUS_CONFIG: Record<string, { label: string; tone: string; desc: string }> = {
   DRAFT: {
     label: 'Draft',
-    tone: 'border-gray-200 bg-white text-ink-700',
+    tone: 'border-ink-100 bg-white text-ink-700',
     desc: 'Booking not yet submitted.',
   },
   PENDING: {
@@ -68,12 +68,12 @@ const STATUS_CONFIG: Record<string, { label: string; tone: string; desc: string 
   },
   CANCELLED: {
     label: 'Cancelled',
-    tone: 'border-gray-200 bg-gray-50 text-gray-600',
+    tone: 'border-ink-100 bg-surface-50 text-ink-600',
     desc: 'This booking was cancelled.',
   },
   REFUNDED: {
     label: 'Refunded',
-    tone: 'border-gray-200 bg-gray-50 text-gray-600',
+    tone: 'border-ink-100 bg-surface-50 text-ink-600',
     desc: 'Payment has been refunded.',
   },
 };

@@ -1,19 +1,14 @@
 'use client';
+// Mama Fua — Notifications
+// KhimTech | 2026
 
 import Link from 'next/link';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { formatDistanceToNow } from 'date-fns';
 import {
-  Bell,
-  CalendarDays,
-  CheckCheck,
-  ChevronRight,
-  CreditCard,
-  Loader2,
-  MessageCircle,
-  ShieldCheck,
-  Sparkles,
+  Bell, CalendarDays, CheckCheck, ChevronRight,
+  CreditCard, Loader2, MessageCircle, ShieldCheck, Sparkles, ArrowRight,
 } from 'lucide-react';
 import { userApi } from '@/lib/api';
 import { useAuthStore } from '@/store/auth.store';
@@ -31,253 +26,254 @@ interface NotificationItem {
 }
 
 const FILTERS: Array<{ key: FilterKey; label: string }> = [
-  { key: 'all', label: 'All' },
+  { key: 'all',    label: 'All' },
   { key: 'unread', label: 'Unread' },
-  { key: 'read', label: 'Read' },
+  { key: 'read',   label: 'Read' },
 ];
 
+const TYPE_ICONS: Record<NotificationItem['type'], React.ReactNode> = {
+  PAYMENT:   <CreditCard className="h-5 w-5" />,
+  CHAT:      <MessageCircle className="h-5 w-5" />,
+  REVIEW:    <Sparkles className="h-5 w-5" />,
+  SYSTEM:    <ShieldCheck className="h-5 w-5" />,
+  BOOKING:   <CalendarDays className="h-5 w-5" />,
+  PROMOTION: <Sparkles className="h-5 w-5" />,
+};
+
 export default function NotificationsPage() {
-  const user = useAuthStore((state) => state.user);
+  const user        = useAuthStore((s) => s.user);
   const queryClient = useQueryClient();
   const [filter, setFilter] = useState<FilterKey>('all');
 
   const { data, isLoading } = useQuery({
     queryKey: ['notifications'],
-    queryFn: async () => {
-      const response = await userApi.notifications();
-      return response.data.data as NotificationItem[];
+    queryFn:  async () => {
+      const res = await userApi.notifications();
+      return res.data.data as NotificationItem[];
     },
     enabled: !!user,
-    refetchInterval: 30000,
+    refetchInterval: 30_000,
   });
 
   const markRead = useMutation({
     mutationFn: (id: string) => userApi.markRead(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
+    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   });
 
   const markAllRead = useMutation({
     mutationFn: () => userApi.markAllNotificationsRead(),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
+    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   });
 
-  const dismissNotification = useMutation({
+  const dismiss = useMutation({
     mutationFn: (id: string) => userApi.dismissNotification(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
+    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   });
 
   const clearRead = useMutation({
     mutationFn: () => userApi.clearNotifications('read'),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
-  });
-
-  const notifications = data ?? [];
-  const unreadCount = notifications.filter((notification) => !notification.isRead).length;
-  const filtered = notifications.filter((notification) => {
-    if (filter === 'unread') return !notification.isRead;
-    if (filter === 'read') return notification.isRead;
-    return true;
+    onSuccess:  () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
   });
 
   if (!user) {
     return (
-      <div className="flex min-h-screen items-center justify-center px-4 py-8">
-        <div className="section-shell px-8 py-10 text-center">
-          <Bell className="mx-auto h-10 w-10 text-brand-600" />
-          <h1 className="mt-4 text-3xl text-ink-900">Sign in to view updates</h1>
-          <p className="mt-3 text-sm leading-6 text-ink-500">
-            Notifications are only available for authenticated accounts.
-          </p>
-          <Link href="/login" className="btn-primary mt-6 px-6 py-3">
-            Open login
-          </Link>
+      <div className="flex min-h-screen items-center justify-center px-4">
+        <div className="w-full max-w-sm rounded-3xl bg-white shadow-[var(--shadow-card)] overflow-hidden">
+          <div className="h-2 bg-gradient-to-r from-brand-400 to-brand-600" />
+          <div className="px-8 py-10 text-center">
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-50">
+              <Bell className="h-8 w-8 text-brand-600" />
+            </div>
+            <h2 className="mt-5 text-xl font-extrabold text-ink-900">Sign in required</h2>
+            <p className="mt-2 text-sm text-ink-500">Log in to see your notifications.</p>
+            <Link href="/login" className="btn-primary mt-6 inline-flex">Go to login <ArrowRight className="h-4 w-4" /></Link>
+          </div>
         </div>
       </div>
     );
   }
 
+  const notifications = data ?? [];
+  const unreadCount   = notifications.filter(n => !n.isRead).length;
+  const filtered      = notifications.filter(n => {
+    if (filter === 'unread') return !n.isRead;
+    if (filter === 'read')   return n.isRead;
+    return true;
+  });
+
+  const isMutating = markRead.isPending || markAllRead.isPending || clearRead.isPending || dismiss.isPending;
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(24,95,165,0.12),_transparent_34%),linear-gradient(180deg,#f8fbff_0%,#f8fafc_50%,#ffffff_100%)] px-4 py-6 sm:px-6">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <header className="grid gap-4 lg:grid-cols-[1.1fr_0.9fr]">
-          <section className="overflow-hidden rounded-[2rem] bg-gradient-to-br from-brand-900 via-brand-800 to-brand-600 px-6 py-6 text-white shadow-card sm:px-8 sm:py-8">
-            <p className="text-sm font-medium text-brand-100">Notifications</p>
-            <h1 className="mt-2 text-3xl sm:text-4xl">Keep every job update in one place</h1>
-            <p className="mt-3 max-w-2xl text-sm leading-7 text-white/72">
-              Booking changes, payment events, and review reminders land here with direct links to
-              the right workflow.
-            </p>
+    <div className="min-h-screen bg-surface-50">
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6 space-y-6">
 
-            <div className="mt-6 flex flex-wrap gap-3">
-              <StatCard label="Unread" value={String(unreadCount)} dark />
-              <StatCard label="Total updates" value={String(notifications.length)} dark />
-              <StatCard
-                label="Latest event"
-                value={
-                  notifications[0]
-                    ? formatDistanceToNow(new Date(notifications[0].createdAt), {
-                        addSuffix: true,
-                      })
-                    : 'No alerts'
-                }
-                dark
-              />
-            </div>
-          </section>
-
-          <section className="section-shell px-6 py-6">
-            <p className="text-sm font-medium text-brand-700">Filters</p>
-            <h2 className="mt-2 text-3xl text-ink-900">Inbox controls</h2>
-            <div className="mt-5 flex flex-wrap gap-3">
-              {FILTERS.map((option) => {
-                const active = option.key === filter;
-                return (
-                  <button
-                    key={option.key}
-                    onClick={() => setFilter(option.key)}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
-                      active
-                        ? 'bg-brand-600 text-white shadow-soft'
-                        : 'bg-slate-100 text-ink-600 hover:bg-slate-200'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                );
-              })}
+        {/* ── HEADER ──────────────────────────────────────────── */}
+        <header className="rounded-3xl overflow-hidden shadow-[var(--shadow-card)]">
+          <div className="bg-ink-900 px-6 pt-7 pb-8 sm:px-8 sm:pt-8">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-white/40">Inbox</p>
+                <h1 className="mt-1.5 text-3xl font-extrabold text-white sm:text-4xl">Notifications</h1>
+                <p className="mt-1.5 text-sm text-white/50">
+                  {unreadCount > 0
+                    ? `${unreadCount} unread update${unreadCount !== 1 ? 's' : ''}`
+                    : 'All caught up'}
+                </p>
+              </div>
+              {unreadCount > 0 && (
+                <span className="flex-shrink-0 flex items-center gap-2 rounded-xl bg-brand-600 px-3 py-2 text-xs font-bold text-white">
+                  <span className="h-2 w-2 rounded-full bg-white animate-ping-slow" />
+                  {unreadCount} new
+                </span>
+              )}
             </div>
 
-            <div className="mt-5 flex flex-wrap gap-3">
-              <button
-                onClick={() => markAllRead.mutate()}
-                disabled={unreadCount === 0 || markAllRead.isPending}
-                className="inline-flex items-center gap-2 rounded-2xl border border-brand-200 bg-brand-50 px-4 py-3 text-sm font-semibold text-brand-700 transition-colors hover:bg-brand-100 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <CheckCheck className="h-4 w-4" />
-                Mark all as read
-              </button>
-              <button
-                onClick={() => clearRead.mutate()}
-                disabled={
-                  notifications.filter((notification) => notification.isRead).length === 0 ||
-                  clearRead.isPending
-                }
-                className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-ink-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Clear read
-              </button>
+            <div className="mt-6 grid grid-cols-3 gap-3">
+              <div className="rounded-2xl bg-white/5 border border-white/8 px-4 py-4">
+                <p className="text-xs text-white/40 uppercase tracking-wide">Unread</p>
+                <p className="mt-1.5 text-2xl font-extrabold text-white">{unreadCount}</p>
+              </div>
+              <div className="rounded-2xl bg-white/5 border border-white/8 px-4 py-4">
+                <p className="text-xs text-white/40 uppercase tracking-wide">Total</p>
+                <p className="mt-1.5 text-2xl font-extrabold text-white">{notifications.length}</p>
+              </div>
+              <div className="rounded-2xl bg-white/5 border border-white/8 px-4 py-4">
+                <p className="text-xs text-white/40 uppercase tracking-wide">Latest</p>
+                <p className="mt-1.5 text-base font-bold text-white truncate">
+                  {notifications[0]
+                    ? formatDistanceToNow(new Date(notifications[0].createdAt), { addSuffix: true })
+                    : '—'}
+                </p>
+              </div>
             </div>
-          </section>
-        </header>
+          </div>
 
-        <section className="section-shell px-6 py-6">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-medium text-brand-700">Inbox</p>
-              <h2 className="mt-1 text-3xl text-ink-900">
-                {filter === 'all'
-                  ? 'Recent updates'
-                  : filter === 'unread'
-                    ? 'Unread updates'
-                    : 'Read updates'}
-              </h2>
-            </div>
-            {(markRead.isPending || markAllRead.isPending || clearRead.isPending || dismissNotification.isPending) && (
-              <div className="inline-flex items-center gap-2 text-sm text-ink-400">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Updating
+          {/* Actions strip */}
+          <div className="bg-white px-6 py-3 sm:px-8 flex items-center gap-3 flex-wrap">
+            <button
+              onClick={() => markAllRead.mutate()}
+              disabled={unreadCount === 0 || markAllRead.isPending}
+              className="flex items-center gap-2 rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-700 hover:bg-brand-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              <CheckCheck className="h-3.5 w-3.5" />
+              Mark all read
+            </button>
+            <button
+              onClick={() => clearRead.mutate()}
+              disabled={notifications.filter(n => n.isRead).length === 0 || clearRead.isPending}
+              className="flex items-center gap-2 rounded-xl border border-ink-200 bg-white px-3 py-2 text-xs font-semibold text-ink-600 hover:bg-surface-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
+              Clear read
+            </button>
+            {isMutating && (
+              <div className="ml-auto flex items-center gap-1.5 text-xs text-ink-400">
+                <Loader2 className="h-3.5 w-3.5 animate-spin" /> Updating…
               </div>
             )}
           </div>
+        </header>
 
-          {isLoading ? (
-            <div className="flex justify-center py-16">
-              <Loader2 className="h-8 w-8 animate-spin text-brand-600" />
+        {/* ── FILTER TABS ─────────────────────────────────────── */}
+        <div className="pill-tabs">
+          {FILTERS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setFilter(key)}
+              className={`pill-tab ${filter === key ? 'pill-tab-active' : ''}`}
+            >
+              {label}
+              {key === 'unread' && unreadCount > 0 && (
+                <span className={`ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                  filter === key ? 'bg-brand-100 text-brand-700' : 'bg-ink-200 text-ink-600'
+                }`}>
+                  {unreadCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* ── LIST ────────────────────────────────────────────── */}
+        <section>
+          {isLoading && (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => <div key={i} className="skeleton h-24 rounded-2xl" />)}
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="py-16 text-center">
-              <Bell className="mx-auto h-12 w-12 text-slate-300" />
-              <h3 className="mt-4 text-2xl text-ink-900">Nothing here yet</h3>
-              <p className="mx-auto mt-3 max-w-md text-sm leading-6 text-ink-500">
-                New booking, payment, and review events will appear here automatically.
+          )}
+
+          {!isLoading && filtered.length === 0 && (
+            <div className="rounded-3xl bg-white shadow-[var(--shadow-card)] px-8 py-16 text-center">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-surface-100">
+                <Bell className="h-8 w-8 text-ink-300" />
+              </div>
+              <h3 className="mt-5 text-lg font-bold text-ink-900">Nothing here yet</h3>
+              <p className="mt-2 text-sm text-ink-500 max-w-xs mx-auto">
+                {filter !== 'all'
+                  ? 'No notifications match this filter.'
+                  : 'New booking, payment, and review events will appear here automatically.'}
               </p>
             </div>
-          ) : (
-            <div className="mt-6 space-y-4">
-              {filtered.map((notification) => {
-                const href = getNotificationHref(notification, user.role);
-                const icon = getNotificationIcon(notification.type);
+          )}
 
+          {!isLoading && filtered.length > 0 && (
+            <div className="space-y-3">
+              {filtered.map(notif => {
+                const href = getHref(notif, user.role);
                 return (
                   <div
-                    key={notification.id}
-                    className={`rounded-[1.7rem] border px-5 py-5 shadow-soft transition-colors ${
-                      notification.isRead
-                        ? 'border-slate-200 bg-white'
-                        : 'border-brand-200 bg-brand-50/50'
+                    key={notif.id}
+                    className={`rounded-2xl border px-5 py-5 transition-all duration-200 ${
+                      notif.isRead
+                        ? 'bg-white border-ink-100 shadow-[var(--shadow-xs)]'
+                        : 'bg-brand-50/50 border-brand-200 shadow-[var(--shadow-card)]'
                     }`}
                   >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                      <div className="flex gap-4">
-                        <div
-                          className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl ${
-                            notification.isRead
-                              ? 'bg-slate-100 text-slate-600'
-                              : 'bg-white text-brand-700'
-                          }`}
-                        >
-                          {icon}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <p className="text-base font-semibold text-ink-900">
-                              {notification.title}
-                            </p>
-                            {!notification.isRead && (
-                              <span className="rounded-full bg-brand-600 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-white">
-                                New
-                              </span>
-                            )}
-                          </div>
-                          <p className="mt-2 text-sm leading-6 text-ink-500">{notification.body}</p>
-                          <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-ink-400">
-                            {formatDistanceToNow(new Date(notification.createdAt), {
-                              addSuffix: true,
-                            })}
-                          </p>
-                        </div>
+                    <div className="flex gap-4">
+                      {/* Icon */}
+                      <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl ${
+                        notif.isRead ? 'bg-surface-100 text-ink-400' : 'bg-white text-brand-600 shadow-[var(--shadow-xs)]'
+                      }`}>
+                        {TYPE_ICONS[notif.type] ?? <Bell className="h-5 w-5" />}
                       </div>
 
-                      <div className="flex flex-wrap gap-3 lg:justify-end">
-                        {!notification.isRead && (
+                      {/* Content */}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="text-sm font-bold text-ink-900">{notif.title}</p>
+                          {!notif.isRead && (
+                            <span className="rounded-full bg-brand-600 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                              New
+                            </span>
+                          )}
+                        </div>
+                        <p className="mt-1.5 text-sm text-ink-500 leading-relaxed">{notif.body}</p>
+                        <p className="mt-2 text-xs text-ink-400">
+                          {formatDistanceToNow(new Date(notif.createdAt), { addSuffix: true })}
+                        </p>
+
+                        {/* Actions */}
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {!notif.isRead && (
+                            <button
+                              onClick={() => markRead.mutate(notif.id)}
+                              className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-600 hover:bg-surface-50 transition-colors"
+                            >
+                              Mark read
+                            </button>
+                          )}
                           <button
-                            onClick={() => markRead.mutate(notification.id)}
-                            className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-ink-700 transition-colors hover:bg-slate-50"
+                            onClick={() => dismiss.mutate(notif.id)}
+                            className="rounded-lg border border-ink-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink-600 hover:bg-surface-50 transition-colors"
                           >
-                            Mark read
+                            Dismiss
                           </button>
-                        )}
-                        <button
-                          onClick={() => dismissNotification.mutate(notification.id)}
-                          className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-ink-700 transition-colors hover:bg-slate-50"
-                        >
-                          Clear
-                        </button>
-                        <Link
-                          href={href}
-                          className="inline-flex items-center gap-2 rounded-2xl bg-ink-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-ink-800"
-                        >
-                          Open
-                          <ChevronRight className="h-4 w-4" />
-                        </Link>
+                          <Link
+                            href={href}
+                            className="flex items-center gap-1 rounded-lg bg-ink-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-ink-700 transition-colors"
+                          >
+                            Open <ChevronRight className="h-3.5 w-3.5" />
+                          </Link>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -291,68 +287,13 @@ export default function NotificationsPage() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  dark = false,
-}: {
-  label: string;
-  value: string;
-  dark?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-[1.4rem] border px-4 py-4 ${
-        dark ? 'border-white/10 bg-white/10 text-white' : 'border-slate-200 bg-white text-ink-900'
-      }`}
-    >
-      <p
-        className={`text-xs font-semibold uppercase tracking-[0.16em] ${dark ? 'text-white/60' : 'text-ink-400'}`}
-      >
-        {label}
-      </p>
-      <p className="mt-2 text-lg font-semibold">{value}</p>
-    </div>
-  );
-}
-
-function getNotificationIcon(type: NotificationItem['type']) {
-  if (type === 'PAYMENT') return <CreditCard className="h-5 w-5" />;
-  if (type === 'CHAT') return <MessageCircle className="h-5 w-5" />;
-  if (type === 'REVIEW') return <Sparkles className="h-5 w-5" />;
-  if (type === 'SYSTEM') return <ShieldCheck className="h-5 w-5" />;
-  return <CalendarDays className="h-5 w-5" />;
-}
-
-function getNotificationHref(
-  notification: NotificationItem,
-  role: 'CLIENT' | 'CLEANER' | 'ADMIN' | 'SUPER_ADMIN'
-) {
-  const screen = notification.data?.screen;
-  const bookingId = notification.data?.bookingId;
-
-  if (screen === 'Wallet') {
-    return role === 'CLEANER' ? '/cleaner/wallet' : '/dashboard';
-  }
-
-  if (screen === 'Chat' && bookingId) {
-    return `/bookings/${bookingId}?panel=chat`;
-  }
-
-  if (screen === 'WriteReview' && bookingId) {
-    return `/bookings/${bookingId}?panel=review`;
-  }
-
-  if (
-    (screen === 'BookingDetail' || screen === 'TrackCleaner' || screen === 'BrowseCleaners') &&
-    bookingId
-  ) {
-    return `/bookings/${bookingId}`;
-  }
-
-  if (bookingId) {
-    return `/bookings/${bookingId}`;
-  }
-
+function getHref(n: NotificationItem, role: string) {
+  const screen    = n.data?.screen;
+  const bookingId = n.data?.bookingId;
+  if (screen === 'Wallet')                                                    return role === 'CLEANER' ? '/cleaner/wallet' : '/dashboard';
+  if (screen === 'Chat'         && bookingId)                                 return `/bookings/${bookingId}?panel=chat`;
+  if (screen === 'WriteReview'  && bookingId)                                 return `/bookings/${bookingId}?panel=review`;
+  if (['BookingDetail','TrackCleaner','BrowseCleaners'].includes(screen ?? '') && bookingId) return `/bookings/${bookingId}`;
+  if (bookingId)                                                              return `/bookings/${bookingId}`;
   return role === 'CLEANER' ? '/cleaner/dashboard' : '/dashboard';
 }

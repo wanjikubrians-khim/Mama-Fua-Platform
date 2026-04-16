@@ -83,7 +83,7 @@ export function Input({
       )}
       <div className="relative">
         {leftIcon && (
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">{leftIcon}</span>
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-400">{leftIcon}</span>
         )}
         <input
           id={inputId}
@@ -97,13 +97,13 @@ export function Input({
           {...props}
         />
         {rightIcon && (
-          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-400">
             {rightIcon}
           </span>
         )}
       </div>
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-      {hint && !error && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+      {hint && !error && <p className="text-xs text-ink-400 mt-1">{hint}</p>}
     </div>
   );
 }
@@ -140,12 +140,12 @@ export function Textarea({
         {error ? (
           <p className="text-xs text-red-500">{error}</p>
         ) : hint ? (
-          <p className="text-xs text-gray-400">{hint}</p>
+          <p className="text-xs text-ink-400">{hint}</p>
         ) : (
           <span />
         )}
         {charCount && maxLength && (
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-ink-400">
             {String(value ?? '').length}/{maxLength}
           </p>
         )}
@@ -227,11 +227,12 @@ export function StatusBadge({ status }: { status: string }) {
 interface AvatarProps {
   name: string;
   src?: string | null;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
   className?: string;
 }
 
 const AVATAR_SIZES = {
+  xs: 'avatar-xs',
   sm: 'avatar-sm',
   md: 'avatar-md',
   lg: 'avatar-lg',
@@ -343,9 +344,9 @@ export function PillTabs<T extends string>({ tabs, active, onChange }: PillTabsP
 // ── Loading page ──────────────────────────────────────────────────────
 export function LoadingPage({ message = 'Loading...' }: { message?: string }) {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center gap-4">
+    <div className="min-h-screen bg-surface-50 flex flex-col items-center justify-center gap-4">
       <Spinner className="h-8 w-8" />
-      <p className="text-sm text-gray-500">{message}</p>
+      <p className="text-sm text-ink-500">{message}</p>
     </div>
   );
 }
@@ -364,13 +365,13 @@ export function PageHeader({ title, subtitle, onBack, right }: PageHeaderProps) 
       <div className="top-nav-inner justify-between">
         <div className="flex items-center gap-3">
           {onBack && (
-            <button onClick={onBack} className="btn-icon text-gray-400 hover:text-gray-600">
+            <button onClick={onBack} className="btn-icon text-ink-400 hover:text-ink-700">
               ←
             </button>
           )}
           <div>
-            <h1 className="text-base font-bold text-gray-900">{title}</h1>
-            {subtitle && <p className="text-xs text-gray-500">{subtitle}</p>}
+            <h1 className="text-base font-bold text-ink-900">{title}</h1>
+            {subtitle && <p className="text-xs text-ink-500">{subtitle}</p>}
           </div>
         </div>
         {right}

@@ -13,3 +13,4 @@ coverage/
 *.log
 .pnpm-store/
 prisma/migrations/*/migration_lock.toml
+*.pem
