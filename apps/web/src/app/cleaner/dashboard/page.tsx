@@ -467,7 +467,7 @@ function getTimeOfDay() {
 }
 
 function isActionPending(
-  state: { isPending: boolean; variables?: { bookingId: string; action: CleanerAction } },
+  state: { isPending: boolean; variables: { bookingId: string; action: CleanerAction } | undefined },
   bookingId: string
 ) {
   return state.isPending && state.variables?.bookingId === bookingId;

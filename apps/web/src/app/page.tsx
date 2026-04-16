@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Clock3,
   MapPin,
-  ShieldCheck,
   Star,
   Smartphone,
   Zap,
@@ -96,7 +95,6 @@ export default function HomePage() {
               <p className="text-[10px] text-white/50 leading-none mt-0.5 uppercase tracking-widest">KhimTech</p>
             </div>
           </Link>
-
           <div className="flex items-center gap-2">
             <Link
               href="/login"

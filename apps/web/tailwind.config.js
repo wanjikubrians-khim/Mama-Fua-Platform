@@ -1,13 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    './src/**/*.{ts,tsx}',
-    '../../packages/ui/src/**/*.{ts,tsx}',
-  ],
+  content: ['./src/**/*.{ts,tsx}', '../../packages/ui/src/**/*.{ts,tsx}'],
   theme: {
     extend: {
-
-      // ── Colors ─────────────────────────────────────────────────────
       colors: {
         // Primary brand — electric blue (modern, trustworthy)
         brand: {
@@ -64,11 +59,10 @@ module.exports = {
 
         // Keep Tailwind defaults: amber, red, green, purple, blue, gray, slate
       },
-
-      // ── Typography ──────────────────────────────────────────────────
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
-        mono: ['JetBrains Mono', 'Fira Code', 'monospace'],
+        sans:    ['Outfit', 'system-ui', 'sans-serif'],
+        display: ['Sora', 'system-ui', 'sans-serif'],
+        mono:    ['JetBrains Mono', 'monospace'],
       },
 
       fontSize: {
@@ -101,6 +95,7 @@ module.exports = {
         'md':    '0 4px 12px 0 rgb(0 0 0 / 0.08)',
         'lg':    '0 8px 24px 0 rgb(0 0 0 / 0.10)',
         'xl':    '0 20px 40px 0 rgb(0 0 0 / 0.12)',
+        'lift':  '0 4px 20px 0 rgb(0 0 0 / 0.10), 0 2px 6px 0 rgb(0 0 0 / 0.06)',
         'modal': '0 25px 60px -10px rgb(0 0 0 / 0.30)',
         'brand': '0 4px 16px 0 rgb(37 99 235 / 0.35)',
         'mint':  '0 4px 16px 0 rgb(5 150 105 / 0.35)',
@@ -137,7 +132,6 @@ module.exports = {
         'shimmer':    'shimmer 1.5s linear infinite',
         'float':      'float 3s ease-in-out infinite',
       },
-
       keyframes: {
         fadeIn: {
           from: { opacity: '0' },

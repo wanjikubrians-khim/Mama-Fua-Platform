@@ -1,7 +1,4 @@
 'use client';
-// Mama Fua — Client Dashboard
-// KhimTech | 2026
-
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import {
@@ -36,11 +33,18 @@ const STATUS_DOTS: Record<string, string> = {
 };
 
 const quickActions = [
-  { label: 'Home Cleaning',    href: '/book?service=home',          emoji: '🏠', price: 'From KES 1,200', color: 'bg-blue-50' },
-  { label: 'Laundry',          href: '/book?service=laundry',       emoji: '👕', price: 'From KES 500',   color: 'bg-amber-50' },
-  { label: 'Office Cleaning',  href: '/book?service=office',        emoji: '🏢', price: 'From KES 2,000', color: 'bg-mint-50' },
-  { label: 'Deep Cleaning',    href: '/book?service=deep',          emoji: '✨', price: 'From KES 3,500', color: 'bg-purple-50' },
+  { label: 'Home Cleaning',    href: '/book?service=home',    emoji: '🏠', price: 'From KES 1,200', color: 'bg-blue-50' },
+  { label: 'Laundry',          href: '/book?service=laundry', emoji: '👕', price: 'From KES 500',   color: 'bg-amber-50' },
+  { label: 'Office Cleaning',  href: '/book?service=office',  emoji: '🏢', price: 'From KES 2,000', color: 'bg-mint-50' },
+  { label: 'Deep Cleaning',    href: '/book?service=deep',    emoji: '✨', price: 'From KES 3,500', color: 'bg-purple-50' },
 ];
+
+function getTimeOfDay() {
+  const h = new Date().getHours();
+  if (h < 12) return 'morning';
+  if (h < 17) return 'afternoon';
+  return 'evening';
+}
 
 export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
@@ -244,10 +248,7 @@ export default function DashboardPage() {
 }
 
 interface BookingSummary {
-  id: string;
-  bookingRef: string;
-  status: string;
-  scheduledAt: string;
+  id: string; bookingRef: string; status: string; scheduledAt: string;
   totalAmount: number;
   service: { name: string };
   cleaner: { firstName: string; lastName: string; avatarUrl: string | null } | null;
@@ -295,11 +296,4 @@ function BookingCard({ booking, highlight = false }: { booking: BookingSummary; 
       <ChevronRight className="h-4 w-4 flex-shrink-0 text-ink-300 group-hover:text-brand-500 transition-colors" />
     </Link>
   );
-}
-
-function getTimeOfDay() {
-  const h = new Date().getHours();
-  if (h < 12) return 'morning';
-  if (h < 17) return 'afternoon';
-  return 'evening';
 }
